@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingBag, Plus, X, AlertTriangle, ChefHat } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
@@ -21,22 +21,46 @@ export default function PantryModePage() {
   const [ingredients, setIngredients] = useState<Array<{ name: string; safe: boolean; warning?: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  function addIngredient() {
-    const name = input.trim();
-    if (!name) return;
-    const safety = checkSingleIngredient(name, activeProfile ?? undefined);
-    if (!safety.safe) {
-      setError(safety.errors.join(' '));
+  function parseIngredientEntries(rawInput: string): string[] {
+    return rawInput
+      .split(',')
+      .map(entry => entry.trim())
+      .filter(Boolean);
+  }
+
+  function focusInputSoon() {
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  function addIngredientFromInput(rawInput = input) {
+    const parsedNames = parseIngredientEntries(rawInput);
+    if (parsedNames.length === 0) {
+      focusInputSoon();
       return;
     }
-    setIngredients(prev => [...prev, {
-      name,
-      safe: true,
-      warning: safety.warnings[0],
-    }]);
+
+    const checkedEntries = parsedNames.map(name => ({ name, safety: checkSingleIngredient(name, activeProfile ?? undefined) }));
+    const firstUnsafe = checkedEntries.find(entry => !entry.safety.safe);
+
+    if (firstUnsafe) {
+      setError(firstUnsafe.safety.errors.join(' '));
+      focusInputSoon();
+      return;
+    }
+
+    setIngredients(prev => [
+      ...prev,
+      ...checkedEntries.map(({ name, safety }) => ({
+        name,
+        safe: true,
+        warning: safety.warnings[0],
+      })),
+    ]);
     setInput('');
     setError('');
+    focusInputSoon();
   }
 
   function remove(name: string) {
@@ -89,13 +113,19 @@ export default function PantryModePage() {
             <h3 className="font-semibold text-[#1C1917] text-sm mb-3">Your Pantry Ingredients</h3>
             <div className="flex gap-2 mb-3">
               <input
+                ref={inputRef}
                 value={input}
                 onChange={e => setInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addIngredient(); }}}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addIngredientFromInput(input);
+                  }
+                }}
                 placeholder="e.g. chicken, carrots, sweet potato..."
                 className="flex-1 rounded-xl border border-[#E7E5E4] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]"
               />
-              <Button icon={<Plus size={16} />} onClick={addIngredient} size="md">Add</Button>
+              <Button icon={<Plus size={16} />} onClick={() => addIngredientFromInput(input)} size="md">Add</Button>
             </div>
 
             {error && (

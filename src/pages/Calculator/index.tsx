@@ -37,9 +37,14 @@ export default function CalculatorPage() {
     setDog(d => ({ ...d, [key]: val }));
   }
 
-  const rer = calcRER(dog.weightLbs);
-  const der = calcDER(dog as DogProfile);
-  const serving = calcServing(dog as DogProfile);
+  const isInvalidWeight = !Number.isFinite(dog.weightLbs) || dog.weightLbs <= 0;
+  const weightError = isInvalidWeight ? 'Weight must be greater than 0 lbs.' : '';
+
+  const rer = isInvalidWeight ? 0 : calcRER(dog.weightLbs);
+  const der = isInvalidWeight ? 0 : calcDER(dog as DogProfile);
+  const serving = isInvalidWeight
+    ? { gramsPerMeal: 0, cupsPerMeal: 0, mealsPerDay: dog.mealsPerDay, totalDailyGrams: 0 }
+    : calcServing(dog as DogProfile);
   const batch1 = calcBatch(serving, '1day');
   const batch3 = calcBatch(serving, '3day');
   const batch7 = calcBatch(serving, '7day');
@@ -67,8 +72,14 @@ export default function CalculatorPage() {
               type="number"
               min={1} max={250}
               value={dog.weightLbs}
-              onChange={e => set('weightLbs', Number(e.target.value))}
+              onChange={e => {
+                const parsed = Number(e.target.value);
+                set('weightLbs', Number.isFinite(parsed) ? parsed : 0);
+              }}
             />
+            {weightError && (
+              <p className="text-xs text-red-700">{weightError}</p>
+            )}
             <Select
               label="Life Stage"
               value={dog.lifeStage}

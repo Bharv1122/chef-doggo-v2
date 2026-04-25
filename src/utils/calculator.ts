@@ -23,6 +23,7 @@ export function lbsToKg(lbs: number): number {
 
 // Resting Energy Requirement in kcal/day
 export function calcRER(weightLbs: number): number {
+  if (!Number.isFinite(weightLbs) || weightLbs <= 0) return 0;
   const kg = lbsToKg(weightLbs);
   return 70 * Math.pow(kg, 0.75);
 }
@@ -38,6 +39,8 @@ export function calcDER(dog: DogProfile): number {
 // Convert daily calories to grams of food
 // kcalPerGram varies by recipe fat content; 1.1 is a reasonable average for balanced homemade
 export function calsToGrams(calories: number, kcalPerGram = 1.1): number {
+  if (!Number.isFinite(calories) || calories <= 0) return 0;
+  if (!Number.isFinite(kcalPerGram) || kcalPerGram <= 0) return 0;
   return Math.round(calories / kcalPerGram);
 }
 

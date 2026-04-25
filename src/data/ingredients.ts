@@ -348,7 +348,7 @@ export const INGREDIENTS: Ingredient[] = [
     id: 'fish_oil',
     name: 'Fish Oil',
     aliases: ['salmon oil', 'cod liver oil', 'omega-3 oil'],
-    category: 'fat',
+    category: 'supplement',
     isToxic: false,
     caloriesPerGram: 9.0,
     budgetFriendly: false,

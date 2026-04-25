@@ -11,10 +11,10 @@ import {
   TOPPER_TEMPLATES, FULL_MEAL_TEMPLATES, BATCH_TEMPLATES,
   TREAT_TEMPLATES, type RecipeTemplate,
 } from '../data/recipeTemplates';
-import { getIngredientById, getIngredientsByCategory } from '../data/ingredients';
+import { getIngredientById } from '../data/ingredients';
 import { getAllSupplements } from '../data/supplements';
 import {
-  calcServing, calcBatch, splitIngredients,
+  calcServing, calcBatch, splitIngredients, calcDER,
   gramsToOz, gramsToCups, groceryLabel,
 } from './calculator';
 import { validateIngredients, GENERAL_VET_DISCLAIMER, SUPPLEMENT_SAFETY_NOTE } from './safetyValidator';
@@ -53,21 +53,33 @@ export async function generateRecipe(input: GeneratorInput): Promise<Recipe> {
   }
 
   // 3. Calculate portions
-  const serving = calcServing(dog);
+  const baseServing = calcServing(dog);
   const effectiveDuration: BatchDuration =
-    recipeType === 'batch_week' ? batchDuration : '1day';
-  const batch = calcBatch(serving, effectiveDuration);
+    recipeType === 'full_meal' || recipeType === 'batch_week' ? batchDuration : '1day';
+  const batch = calcBatch(baseServing, effectiveDuration);
+
+  const treatDailyCalorieCap = Math.max(1, Math.round(calcDER(dog) * 0.1));
+  const treatDailyGramsCap = Math.max(10, Math.round(treatDailyCalorieCap / 3)); // ~3 kcal/g treat estimate
+
+  const serving = recipeType === 'treat'
+    ? {
+        gramsPerMeal: Math.max(5, Math.round(treatDailyGramsCap / 2)),
+        cupsPerMeal: Math.round((Math.max(5, Math.round(treatDailyGramsCap / 2)) / 240) * 10) / 10,
+        mealsPerDay: 2,
+        totalDailyGrams: treatDailyGramsCap,
+      }
+    : baseServing;
 
   const totalGrams = recipeType === 'topper'
-    ? Math.round(serving.totalDailyGrams * 0.15) // toppers are ~15% of daily food
+    ? Math.round(baseServing.totalDailyGrams * 0.15) // toppers are ~15% of daily food
     : recipeType === 'treat'
-    ? 50 // fixed small treat amount
+    ? treatDailyGramsCap
     : batch.totalYieldGrams;
 
   const split = splitIngredients(totalGrams);
 
   // 4. Build ingredient list
-  const ingredients = buildIngredients(template, split, recipeType);
+  const ingredients = buildIngredients(template, split, recipeType, dog);
 
   // 5. Build cooking steps
   const instructions = buildInstructions(template, recipeType);
@@ -78,7 +90,7 @@ export async function generateRecipe(input: GeneratorInput): Promise<Recipe> {
     : [];
 
   // 7. Build shopping list
-  const shoppingList = buildShoppingList(ingredients, supplements, recipeType);
+  const shoppingList = buildShoppingList(ingredients, supplements, recipeType, batch);
 
   // 8. Build storage info
   const storage = buildStorage(recipeType);
@@ -100,8 +112,12 @@ export async function generateRecipe(input: GeneratorInput): Promise<Recipe> {
     ingredients,
     instructions,
     nutrition: {
-      caloriesPerServing: Math.round(serving.gramsPerMeal * 1.1),
-      caloriesPerDay: Math.round(serving.totalDailyGrams * 1.1),
+      caloriesPerServing: recipeType === 'treat'
+        ? Math.round(treatDailyCalorieCap / serving.mealsPerDay)
+        : Math.round(serving.gramsPerMeal * 1.1),
+      caloriesPerDay: recipeType === 'treat'
+        ? treatDailyCalorieCap
+        : Math.round(serving.totalDailyGrams * 1.1),
       isEstimate: true,
     },
     serving,
@@ -164,10 +180,16 @@ function pickTemplate(input: GeneratorInput): RecipeTemplate {
 }
 
 // ── Ingredient builder ────────────────────────────────────────────────────────
+function fishOilSupplementGrams(weightLbs: number): number {
+  const estimate = weightLbs * 0.05; // 1g fish oil per ~20 lbs as a conservative estimate
+  return Math.round(Math.min(3, Math.max(0.5, estimate)) * 10) / 10;
+}
+
 function buildIngredients(
   template: RecipeTemplate,
   split: { proteinGrams: number; carbGrams: number; vegGrams: number; fatGrams: number },
-  recipeType: RecipeType
+  recipeType: RecipeType,
+  dog: DogProfile
 ): RecipeIngredient[] {
   const items: RecipeIngredient[] = [];
 
@@ -181,14 +203,22 @@ function buildIngredients(
     for (const id of ids) {
       const ing = getIngredientById(id);
       if (!ing) continue;
+
+      const isFishOilSupplement = id === 'fish_oil';
+      const amountGrams = isFishOilSupplement ? fishOilSupplementGrams(dog.weightLbs) : gramsEach;
+      const amountCups = isFishOilSupplement ? undefined : gramsToCups(amountGrams);
+      const amountOz = gramsToOz(amountGrams);
+
       items.push({
         ingredientId: id,
         name: ing.name,
-        category,
-        amountGrams: gramsEach,
-        amountCups: gramsToCups(gramsEach),
-        amountOz: gramsToOz(gramsEach),
-        groceryFriendlyAmount: groceryLabel(gramsEach, ing.name),
+        category: isFishOilSupplement ? 'supplement' : category,
+        amountGrams,
+        amountCups,
+        amountOz,
+        groceryFriendlyAmount: isFishOilSupplement
+          ? `about ${amountGrams}g (${amountOz} oz) ${ing.name} total`
+          : groceryLabel(amountGrams, ing.name),
         prepNote: ing.prepNotes,
       });
     }
@@ -337,7 +367,8 @@ function buildSupplements(dog: DogProfile): SupplementItem[] {
 function buildShoppingList(
   ingredients: RecipeIngredient[],
   supplements: SupplementItem[],
-  recipeType: RecipeType
+  recipeType: RecipeType,
+  batch: { numberOfContainers: number }
 ): ShoppingListItem[] {
   const items: ShoppingListItem[] = ingredients.map(ing => ({
     name: ing.name,
@@ -361,7 +392,7 @@ function buildShoppingList(
     if (recipeType === 'batch_week') {
       items.push({
         name: 'Airtight storage containers',
-        displayAmount: '7+ meal-sized containers',
+        displayAmount: `${batch.numberOfContainers}+ meal-sized containers`,
         category: 'equipment',
         note: 'Glass or BPA-free plastic. Label each with date.',
       });
