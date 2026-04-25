@@ -1,0 +1,98 @@
+export type RecipeType = 'topper' | 'full_meal' | 'batch_week' | 'pantry' | 'treat';
+export type IngredientCategory = 'protein' | 'carb' | 'vegetable' | 'fat' | 'supplement' | 'treat';
+export type SupplementCategory = 'calcium' | 'omega3' | 'multivitamin' | 'probiotic' | 'joint';
+export type BatchDuration = '1day' | '3day' | '7day';
+
+export interface RecipeIngredient {
+  ingredientId: string;
+  name: string;
+  category: IngredientCategory;
+  amountGrams: number;
+  amountCups?: number;
+  amountOz?: number;
+  groceryFriendlyAmount: string;
+  prepNote?: string;
+}
+
+export interface CookingStep {
+  stepNumber: number;
+  instruction: string;
+  durationMinutes?: number;
+  tip?: string;
+}
+
+export interface NutritionEstimate {
+  caloriesPerServing: number;
+  caloriesPerDay: number;
+  isEstimate: true;
+}
+
+export interface ServingInfo {
+  gramsPerMeal: number;
+  cupsPerMeal: number;
+  mealsPerDay: number;
+  totalDailyGrams: number;
+}
+
+export interface BatchInfo {
+  totalYieldGrams: number;
+  numberOfMeals: number;
+  numberOfContainers: number;
+  fridgeMeals: number;
+  freezerMeals: number;
+  usedFor: BatchDuration;
+}
+
+export interface StorageInfo {
+  fridgeDays: number;
+  freezerMonths: number;
+  thawInstructions: string;
+  servingTemperature: string;
+  portioningNotes: string;
+}
+
+export interface SupplementItem {
+  name: string;
+  category: SupplementCategory;
+  isRequired: boolean;
+  estimatedAmount?: string;
+  vetReviewNote: string;
+  exampleProducts?: string[];
+}
+
+export interface ShoppingListItem {
+  name: string;
+  displayAmount: string;
+  category: 'protein' | 'produce' | 'pantry' | 'supplement' | 'equipment';
+  estimatedCostUsd?: number;
+  note?: string;
+}
+
+export interface Recipe {
+  id: string;
+  dogProfileId: string;
+  name: string;
+  description: string;
+  type: RecipeType;
+  ingredients: RecipeIngredient[];
+  instructions: CookingStep[];
+  nutrition: NutritionEstimate;
+  serving: ServingInfo;
+  batch: BatchInfo;
+  supplements: SupplementItem[];
+  storage: StorageInfo;
+  shoppingList: ShoppingListItem[];
+  safetyNotes: string[];
+  vetDisclaimer: string;
+  isFavorite: boolean;
+  scaleFactor: 1 | 2 | 3 | 4;
+  transitionGuide?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SafetyResult {
+  safe: boolean;
+  errors: string[];
+  warnings: string[];
+}
