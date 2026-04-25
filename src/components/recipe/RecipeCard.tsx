@@ -47,14 +47,29 @@ export function RecipeCard({ recipe, dogName, onToggleFavorite }: Props) {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-3 text-xs text-[#78716C]">
-        <span className="flex items-center gap-1">
-          <Utensils size={13} />
-          {recipe.serving.mealsPerDay}x/day · {recipe.serving.cupsPerMeal}c per meal
-        </span>
-        <span className="flex items-center gap-1">
-          <ChefHat size={13} />
-          ~{recipe.nutrition.caloriesPerDay} kcal/day (est.)
-        </span>
+        {recipe.type === 'treat' ? (
+          <>
+            <span className="flex items-center gap-1">
+              <Utensils size={13} />
+              Treat cap: ~{recipe.nutrition.caloriesPerDay} kcal/day
+            </span>
+            <span className="flex items-center gap-1">
+              <ChefHat size={13} />
+              10% daily calories max
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="flex items-center gap-1">
+              <Utensils size={13} />
+              {recipe.serving.mealsPerDay}x/day · {recipe.serving.cupsPerMeal}c per meal
+            </span>
+            <span className="flex items-center gap-1">
+              <ChefHat size={13} />
+              ~{recipe.nutrition.caloriesPerDay} kcal/day (est.)
+            </span>
+          </>
+        )}
       </div>
 
       <div className="mt-3 flex gap-2">

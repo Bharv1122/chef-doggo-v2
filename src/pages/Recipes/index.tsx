@@ -34,6 +34,9 @@ export default function RecipesPage() {
     return r.type === filter;
   });
 
+  const hasAnyRecipes = recipes.length > 0;
+  const isFilteredOut = hasAnyRecipes && filtered.length === 0;
+
   return (
     <>
       <Header
@@ -70,13 +73,17 @@ export default function RecipesPage() {
             </div>
             <div>
               <h2 className="font-semibold text-[#1C1917] text-lg">
-                {filter === 'favorites' ? 'No favorites yet' : 'No recipes yet'}
+                {filter === 'favorites'
+                  ? (isFilteredOut ? 'No favorites match this filter' : 'No favorites yet')
+                  : (isFilteredOut ? 'No recipes match this filter' : 'No recipes yet')}
               </h2>
               <p className="text-[#78716C] text-sm mt-1">
-                {filter === 'favorites' ? 'Heart a recipe to save it here' : 'Create your first recipe to get started'}
+                {filter === 'favorites'
+                  ? (isFilteredOut ? 'Try another filter or mark a recipe as favorite.' : 'Heart a recipe to save it here')
+                  : (isFilteredOut ? 'Try a different filter to view your saved recipes.' : 'Create your first recipe to get started')}
               </p>
             </div>
-            {filter === 'all' && (
+            {filter === 'all' && !isFilteredOut && (
               <Button icon={<Plus size={16} />} onClick={() => navigate('/wizard')}>Create First Recipe</Button>
             )}
           </div>

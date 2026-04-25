@@ -53,6 +53,30 @@ export default function RecipeDetailPage() {
     groceryFriendlyAmount: `${scale > 1 ? `${scale}× ` : ''}${ing.groceryFriendlyAmount}`,
   }));
 
+  const scaledServing = {
+    ...recipe.serving,
+    gramsPerMeal: Math.round(recipe.serving.gramsPerMeal * scale),
+    cupsPerMeal: Math.round(recipe.serving.cupsPerMeal * scale * 10) / 10,
+    totalDailyGrams: Math.round(recipe.serving.totalDailyGrams * scale),
+  };
+
+  const scaledNutrition = {
+    caloriesPerServing: Math.round(recipe.nutrition.caloriesPerServing * scale),
+    caloriesPerDay: Math.round(recipe.nutrition.caloriesPerDay * scale),
+  };
+
+  const quickStats = recipe.type === 'treat'
+    ? [
+        { label: 'Treat cap/day (10%)', value: formatCalories(recipe.nutrition.caloriesPerDay) },
+        { label: 'Treat cap/serving', value: formatCalories(recipe.nutrition.caloriesPerServing) },
+        { label: 'Daily treat grams', value: `${recipe.serving.totalDailyGrams}g` },
+      ]
+    : [
+        { label: 'Per meal', value: `${scaledServing.cupsPerMeal}c` },
+        { label: 'Daily cals', value: formatCalories(scaledNutrition.caloriesPerDay) },
+        { label: 'Meals/day', value: String(recipe.serving.mealsPerDay) },
+      ];
+
   const handleMakeCheaper = () => {
     if (budgetApplied) return;
     const result = applyBudgetSwaps(recipe.ingredients, dog);
@@ -109,18 +133,18 @@ export default function RecipeDetailPage() {
 
           {/* Nutrition quick stats */}
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-            {[
-              { label: 'Per meal', value: `${recipe.serving.cupsPerMeal}c` },
-              { label: 'Daily cals', value: formatCalories(recipe.nutrition.caloriesPerDay) },
-              { label: 'Meals/day', value: String(recipe.serving.mealsPerDay) },
-            ].map(s => (
+            {quickStats.map(s => (
               <div key={s.label} className="bg-[#FDF6E9] rounded-xl p-2.5">
                 <p className="text-sm font-bold text-[#1C1917]">{s.value}</p>
                 <p className="text-xs text-[#78716C]">{s.label}</p>
               </div>
             ))}
           </div>
-          <p className="text-xs text-center text-[#A8A29E] mt-2 italic">All values are estimates</p>
+          <p className="text-xs text-center text-[#A8A29E] mt-2 italic">
+            {recipe.type === 'treat'
+              ? 'Treat stats reflect the recommended 10% daily treat-calorie cap.'
+              : 'All values are estimates'}
+          </p>
 
           {/* Action buttons */}
           <div className="mt-4 grid grid-cols-2 gap-2">

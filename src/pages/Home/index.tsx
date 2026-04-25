@@ -8,7 +8,6 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useDogProfiles } from '../../hooks/useDogProfiles';
 import { useRecipes } from '../../hooks/useRecipes';
-import { BottomNav } from '../../components/layout/BottomNav';
 
 const FEATURES = [
   { icon: <ChefHat size={22} />, label: 'Full Meals', desc: 'Complete homemade recipes with portion math', to: '/bowl-builder' },
@@ -137,7 +136,6 @@ export default function HomePage() {
         </div>
 
       </div>
-      <BottomNav />
     </div>
   );
 }
