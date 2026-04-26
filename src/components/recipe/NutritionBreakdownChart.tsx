@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import type { Recipe } from '../../types/recipe';
 import { getNutritionMacroBreakdown } from '../../utils/recipeInsights';
 
@@ -18,31 +18,29 @@ export function NutritionBreakdownChart({ recipe }: Props) {
 
   return (
     <div className="grid gap-4 sm:grid-cols-[200px_1fr] sm:items-center">
-      <div className="h-52 w-full max-w-[260px] mx-auto">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={macros}
-              dataKey="percentage"
-              nameKey="label"
-              cx="50%"
-              cy="50%"
-              innerRadius={56}
-              outerRadius={82}
-              paddingAngle={2}
-              stroke="#FFFBF5"
-              strokeWidth={3}
-            >
-              {macros.map(entry => (
-                <Cell key={entry.key} fill={MACRO_COLORS[entry.key]} />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(value, name) => [`${Number(value ?? 0)}%`, name]}
-              contentStyle={{ borderRadius: '12px', borderColor: '#E7E5E4', fontSize: '12px' }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+      <div className="h-52 w-full max-w-[260px] mx-auto flex items-center justify-center">
+        <PieChart width={220} height={220}>
+          <Pie
+            data={macros}
+            dataKey="percentage"
+            nameKey="label"
+            cx="50%"
+            cy="50%"
+            innerRadius={56}
+            outerRadius={82}
+            paddingAngle={2}
+            stroke="#FFFBF5"
+            strokeWidth={3}
+          >
+            {macros.map(entry => (
+              <Cell key={entry.key} fill={MACRO_COLORS[entry.key]} />
+            ))}
+          </Pie>
+          <Tooltip
+            formatter={(value, name) => [`${Number(value ?? 0)}%`, name]}
+            contentStyle={{ borderRadius: '12px', borderColor: '#E7E5E4', fontSize: '12px' }}
+          />
+        </PieChart>
       </div>
 
       <div className="space-y-2.5">

@@ -6,8 +6,7 @@ import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Button } from '../../components/ui/Button';
 import { useRecipes } from '../../hooks/useRecipes';
 import { useDogProfiles } from '../../hooks/useDogProfiles';
-import { formatRecipeType, formatCalories, formatDate, formatGrams } from '../../utils/formatting';
-import { gramsToOz } from '../../utils/calculator';
+import { formatRecipeType, formatCalories, formatDate, formatGrams, formatOz } from '../../utils/formatting';
 
 export default function VetExportPage() {
   const { id } = useParams<{ id: string }>();
@@ -104,7 +103,7 @@ export default function VetExportPage() {
                     <td className="p-2 border border-[#E7E5E4]">{ing.name}</td>
                     <td className="p-2 border border-[#E7E5E4] capitalize">{ing.category}</td>
                     <td className="p-2 border border-[#E7E5E4] text-right">{ing.amountGrams}g</td>
-                    <td className="p-2 border border-[#E7E5E4] text-right">{gramsToOz(ing.amountGrams)} oz</td>
+                    <td className="p-2 border border-[#E7E5E4] text-right">{formatOz(ing.amountGrams)}</td>
                   </tr>
                 ))}
               </tbody>

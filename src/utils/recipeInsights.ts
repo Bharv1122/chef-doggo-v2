@@ -55,24 +55,24 @@ const PHOTO_META: Record<RecipePhotoKind, RecipePhotoMeta> = {
 };
 
 const ALLERGEN_RULES: Array<{ allergen: CommonAllergen; pattern: RegExp }> = [
-  { allergen: 'chicken', pattern: /chicken|turkey/ },
-  { allergen: 'beef', pattern: /beef|lamb|venison/ },
-  { allergen: 'dairy', pattern: /dairy|milk|cheese|yogurt|butter|cream/ },
-  { allergen: 'wheat', pattern: /wheat|flour|barley|gluten/ },
-  { allergen: 'soy', pattern: /soy/ },
-  { allergen: 'eggs', pattern: /egg\b|eggs\b|eggshell/ },
+  { allergen: 'chicken', pattern: /\b(chicken|turkey)\b/ },
+  { allergen: 'beef', pattern: /\b(beef|lamb|venison)\b/ },
+  { allergen: 'dairy', pattern: /\b(dairy|milk|cheese|yogurt|butter|cream)\b/ },
+  { allergen: 'wheat', pattern: /\b(wheat|wheat\s*flour|whole\s*wheat|gluten)\b/ },
+  { allergen: 'soy', pattern: /\bsoy\b/ },
+  { allergen: 'eggs', pattern: /\b(egg|eggs|eggshell)\b/ },
 ];
 
 const RECIPE_CLASSIFIER_RULES: Array<{ kind: RecipePhotoKind; pattern: RegExp }> = [
-  { kind: 'fish', pattern: /salmon|whitefish|sardine|fish|cod|tilapia|pollock|haddock/ },
-  { kind: 'beef', pattern: /beef|lamb|venison/ },
-  { kind: 'chicken', pattern: /chicken|turkey|egg/ },
+  { kind: 'beef', pattern: /\b(beef|lamb|venison)\b/ },
+  { kind: 'chicken', pattern: /\b(chicken|turkey|egg)\b/ },
+  { kind: 'fish', pattern: /\b(salmon|whitefish|sardine|cod|tilapia|pollock|haddock|fish(?![_\s-]?oil))\b/ },
 ];
 
 const PHOTO_CACHE = new Map<RecipePhotoKind, string>();
 
 function buildPhotoDataUri(meta: RecipePhotoMeta): string {
-  const svg = `<svg xmlns="https://i.ytimg.com/vi/6Eprseh2k5k/hq720.jpg?sqp=-oaymwE7CK4FEIIDSFryq4qpAy0IARUAAAAAGAElAADIQj0AgKJD8AEB-AHYCIAC0AWKAgwIABABGEIgUyhyMA8=&rs=AOn4CLD4O8gcUeajA4vCDUZEd4Jtdq7eLw" viewBox="0 0 1200 800" role="img" aria-label="${meta.alt}">
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="${meta.alt}">
     <defs>
       <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0%" stop-color="${meta.colors.start}" />
@@ -158,13 +158,19 @@ export function getNutritionMacroBreakdown(recipe: Recipe): Array<{ key: 'protei
     if (caloriesPerGram <= 0 || !Number.isFinite(caloriesPerGram)) continue;
 
     const calories = ingredient.amountGrams * caloriesPerGram;
+    const sourceName = source?.name?.toLowerCase() ?? '';
+    const ingredientName = ingredient.name.toLowerCase();
+    const isFishOilSupplement =
+      ingredient.ingredientId === 'fish_oil'
+      || /fish[_\s-]?oil/.test(sourceName)
+      || /fish[_\s-]?oil/.test(ingredientName);
 
     if (ingredient.category === 'protein') {
       caloriesByMacro.protein += calories;
       continue;
     }
 
-    if (ingredient.category === 'fat') {
+    if (ingredient.category === 'fat' || isFishOilSupplement) {
       caloriesByMacro.fat += calories;
       continue;
     }

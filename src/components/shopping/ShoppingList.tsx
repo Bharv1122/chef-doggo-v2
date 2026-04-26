@@ -18,14 +18,43 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const CATEGORY_ORDER = ['protein', 'produce', 'pantry', 'supplement', 'equipment'];
 
+function escapeHtml(input: string): string {
+  return input
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 export function ShoppingList({ items, recipeName }: Props) {
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
   const [downloaded, setDownloaded] = useState(false);
 
+  const dedupedItems = useMemo(() => {
+    const byKey = new Map<string, ShoppingListItem>();
+
+    for (const item of items) {
+      const key = `${item.category}::${item.name.trim().toLowerCase()}::${item.displayAmount.trim().toLowerCase()}`;
+      const existing = byKey.get(key);
+
+      if (!existing) {
+        byKey.set(key, item);
+        continue;
+      }
+
+      if (!existing.note && item.note) {
+        byKey.set(key, { ...existing, note: item.note });
+      }
+    }
+
+    return Array.from(byKey.values());
+  }, [items]);
+
   const grouped = useMemo(() => {
     return CATEGORY_ORDER.reduce<Record<string, Array<{ item: ShoppingListItem; index: number }>>>((acc, category) => {
-      const inCategory = items
+      const inCategory = dedupedItems
         .map((item, index) => ({ item, index }))
         .filter(({ item }) => item.category === category);
 
@@ -35,7 +64,7 @@ export function ShoppingList({ items, recipeName }: Props) {
 
       return acc;
     }, {});
-  }, [items]);
+  }, [dedupedItems]);
 
   const toggle = (index: number) => setChecked(prev => {
     const next = new Set(prev);
@@ -122,15 +151,15 @@ export function ShoppingList({ items, recipeName }: Props) {
         const itemsHtml = grouped[category]
           .map(({ item }) => `
             <li>
-              <div class="item-row">${item.displayAmount}</div>
-              ${item.note ? `<p class="note">${item.note}</p>` : ''}
+              <div class="item-row">${escapeHtml(item.displayAmount)}</div>
+              ${item.note ? `<p class="note">${escapeHtml(item.note)}</p>` : ''}
             </li>
           `)
           .join('');
 
         return `
           <section>
-            <h3>${CATEGORY_LABELS[category]}</h3>
+            <h3>${escapeHtml(CATEGORY_LABELS[category])}</h3>
             <ul>${itemsHtml}</ul>
           </section>
         `;
@@ -157,7 +186,7 @@ export function ShoppingList({ items, recipeName }: Props) {
       </head>
       <body>
         <h1>🐾 Chef Doggo Shopping List</h1>
-        <p class="subtitle">${recipeName ? `${recipeName} • ` : ''}${new Date().toLocaleDateString()}</p>
+        <p class="subtitle">${recipeName ? `${escapeHtml(recipeName)} • ` : ''}${new Date().toLocaleDateString()}</p>
         ${groupedHtml}
       </body>
       </html>
@@ -178,7 +207,7 @@ export function ShoppingList({ items, recipeName }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-xs text-[#78716C] pt-1">{items.length} items · {checked.size} checked</p>
+        <p className="text-xs text-[#78716C] pt-1">{dedupedItems.length} items · {checked.size} checked</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full sm:w-auto max-w-[350px]">
           <Button variant="ghost" size="sm" icon={copyState === 'copied' ? <Check size={14} /> : <Copy size={14} />} onClick={copyList}>
             {copyState === 'copied' ? 'Copied' : 'Copy'}

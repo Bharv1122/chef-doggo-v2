@@ -378,15 +378,20 @@ function buildShoppingList(
   }));
 
   if (recipeType === 'full_meal' || recipeType === 'batch_week') {
+    const hasFishOilInIngredients = ingredients.some(ing => ing.ingredientId === 'fish_oil');
+
     for (const s of supplements) {
-      if (s.isRequired) {
-        items.push({
-          name: s.name,
-          displayAmount: '(ask your vet for dosing)',
-          category: 'supplement',
-          note: s.vetReviewNote,
-        });
+      const isOmega3 = s.name.toLowerCase().includes('omega-3');
+      if (!s.isRequired || (isOmega3 && hasFishOilInIngredients)) {
+        continue;
       }
+
+      items.push({
+        name: s.name,
+        displayAmount: '(ask your vet for dosing)',
+        category: 'supplement',
+        note: s.vetReviewNote,
+      });
     }
 
     if (recipeType === 'batch_week') {
@@ -399,7 +404,22 @@ function buildShoppingList(
     }
   }
 
-  return items;
+  const deduped = new Map<string, ShoppingListItem>();
+  for (const item of items) {
+    const key = `${item.category}::${item.name.trim().toLowerCase()}::${item.displayAmount.trim().toLowerCase()}`;
+    const existing = deduped.get(key);
+
+    if (!existing) {
+      deduped.set(key, item);
+      continue;
+    }
+
+    if (!existing.note && item.note) {
+      deduped.set(key, { ...existing, note: item.note });
+    }
+  }
+
+  return Array.from(deduped.values());
 }
 
 function ingCategoryToShopping(cat: RecipeIngredient['category']): ShoppingListItem['category'] {

@@ -109,7 +109,14 @@ export function splitIngredients(totalGrams: number): IngredientAmounts {
 
 // ── Unit helpers ───────────────────────────────────────────────────────────────
 export function gramsToOz(grams: number): number {
-  return Math.round((grams / 28.35) * 10) / 10;
+  if (!Number.isFinite(grams) || grams <= 0) return 0;
+
+  const rawOz = grams / 28.35;
+  if (rawOz < 0.1) {
+    return Number(rawOz.toFixed(2));
+  }
+
+  return Math.round(rawOz * 10) / 10;
 }
 
 export function gramsToLbs(grams: number): number {

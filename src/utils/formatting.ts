@@ -6,7 +6,11 @@ export function formatGrams(grams: number): string {
 }
 
 export function formatOz(grams: number): string {
-  return `${gramsToOz(grams)} oz`;
+  const ounces = gramsToOz(grams);
+  if (grams > 0 && ounces === 0) {
+    return '<0.01 oz';
+  }
+  return `${ounces} oz`;
 }
 
 export function formatCups(grams: number): string {
