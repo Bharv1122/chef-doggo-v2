@@ -15,9 +15,9 @@ export function Card({ children, className = '', onClick, hoverable, padding = '
     <div
       onClick={onClick}
       className={[
-        'bg-white rounded-2xl shadow-sm border border-[#E7E5E4]',
+        'rounded-3xl border border-[#eadfce] bg-[#fffdf9] shadow-sm',
         PADDING[padding],
-        hoverable || onClick ? 'cursor-pointer hover:shadow-md transition-shadow duration-150' : '',
+        hoverable || onClick ? 'cursor-pointer transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md' : '',
         className,
       ].join(' ')}
     >
@@ -34,8 +34,8 @@ interface CardSectionProps {
 
 export function CardSection({ children, className = '', title }: CardSectionProps) {
   return (
-    <div className={['border-t border-[#E7E5E4] pt-4 mt-4', className].join(' ')}>
-      {title && <h3 className="text-sm font-semibold text-[#78716C] uppercase tracking-wide mb-3">{title}</h3>}
+    <div className={['mt-4 border-t border-[#eadfce] pt-4', className].join(' ')}>
+      {title && <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[#8b8378]">{title}</h3>}
       {children}
     </div>
   );

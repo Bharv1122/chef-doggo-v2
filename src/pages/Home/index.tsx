@@ -1,141 +1,194 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ChefHat, CalendarDays, Droplets, ShoppingBag, Cake,
-  Calculator, MessageCircle, Mic, ShieldCheck, ArrowRight, Sparkles,
+  Calculator,
+  CalendarDays,
+  ChefHat,
+  MessageCircle,
+  Mic,
+  Package,
+  ShieldCheck,
+  Sparkles,
+  UtensilsCrossed,
 } from 'lucide-react';
-import { Card } from '../../components/ui/Card';
+import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { useDogProfiles } from '../../hooks/useDogProfiles';
 import { useRecipes } from '../../hooks/useRecipes';
 
-const FEATURES = [
-  { icon: <ChefHat size={22} />, label: 'Full Meals', desc: 'Complete homemade recipes with portion math', to: '/bowl-builder' },
-  { icon: <CalendarDays size={22} />, label: 'Batch Cook', desc: 'One cook, feed all week — with freezer plan', to: '/bowl-builder', highlight: true },
-  { icon: <Droplets size={22} />, label: 'Toppers', desc: "Fresh add-ons for your dog's regular food", to: '/bowl-builder' },
-  { icon: <ShoppingBag size={22} />, label: 'Pantry Mode', desc: 'Use what you already have', to: '/pantry' },
-  { icon: <Cake size={22} />, label: 'Treats', desc: 'Birthday bowls, frozen bites, training treats', to: '/treats' },
-  { icon: <Calculator size={22} />, label: 'Calculator', desc: 'Estimate portions for any dog', to: '/calculator' },
-  { icon: <MessageCircle size={22} />, label: 'Ask Chef Doggo', desc: 'AI assistant for any question', to: '/assistant' },
-  { icon: <Mic size={22} />, label: 'Voice Cooking', desc: 'Hands-free step-by-step cooking mode', to: '/recipes' },
+const QUICK_ACTIONS = [
+  { label: 'Full Meals', desc: 'Create complete balanced homemade recipes', icon: <ChefHat size={18} />, to: '/bowl-builder', color: 'bg-[#fff0de] text-[#f97316]' },
+  { label: 'Batch Cook', desc: 'Cook once, feed all week with freezer plans', icon: <CalendarDays size={18} />, to: '/wizard', color: 'bg-[#ffe8cf] text-[#f97316]', tag: 'Popular' },
+  { label: 'Pantry Mode', desc: 'Use what you already have in your kitchen', icon: <Package size={18} />, to: '/pantry', color: 'bg-[#eaf6ea] text-[#43a365]' },
+  { label: 'Treats', desc: 'Healthy homemade treats for training & rewards', icon: <Sparkles size={18} />, to: '/treats', color: 'bg-[#ffe8e8] text-[#ef6f5d]' },
+  { label: 'Calculator', desc: 'Estimate portions, calories & batch sizes', icon: <Calculator size={18} />, to: '/calculator', color: 'bg-[#efe9ff] text-[#7f56d9]' },
+  { label: 'Ask Chef', desc: 'Get AI-powered answers for your questions', icon: <MessageCircle size={18} />, to: '/assistant', color: 'bg-[#e9f8f5] text-[#1f9f84]' },
 ];
 
-const WHY_ITEMS = [
-  { icon: <ShieldCheck size={20} className="text-[#22C55E]" />, label: 'Safety first', desc: 'Every recipe is checked against a toxic ingredient database.' },
-  { icon: <Calculator size={20} className="text-[#F97316]" />, label: 'Portion math done for you', desc: 'Calories, gram weights, batch sizes — all calculated automatically.' },
-  { icon: <Sparkles size={20} className="text-[#F59E0B]" />, label: 'Made for real life', desc: 'Budget mode, pantry mode, voice cooking, and weekly batch plans.' },
+const FALLBACK_RECIPES = [
+  { name: 'Turkey & Sweet Potato Bowl', date: 'Apr 24, 2025', cal: 420 },
+  { name: 'Chicken & Rice Comfort', date: 'Apr 22, 2025', cal: 380 },
+  { name: 'Beef & Veggie Medley', date: 'Apr 20, 2025', cal: 450 },
+];
+
+const FALLBACK_DOGS = [
+  { id: '1', name: 'Buddy', breed: 'Golden Retriever', ageYears: 4, weightLbs: 28 },
+  { id: '2', name: 'Luna', breed: 'Pembroke Welsh Corgi', ageYears: 2, weightLbs: 20 },
 ];
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { activeProfile, profiles } = useDogProfiles();
+  const { profiles, activeProfile } = useDogProfiles();
   const { recipes } = useRecipes();
 
+  const recentRecipes = recipes.slice(-3).reverse().map(recipe => ({
+    name: recipe.name,
+    date: new Date(recipe.createdAt).toLocaleDateString(),
+    cal: recipe.nutrition.caloriesPerServing,
+  }));
+
   return (
-    <div className="min-h-screen bg-[#FFFBF5]">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-24">
-
-        {/* Hero */}
-        <div className="flex flex-col items-center text-center mb-8">
-          <img
-            src="/chef-doggo-logo.webp"
-            alt="Chef Doggo"
-            style={{ height: '128px' }}
-            className="w-auto object-contain mb-4"
-          />
-          <h1 className="text-4xl md:text-5xl font-bold text-[#1C1917] leading-tight">Chef Doggo</h1>
-          <p className="text-lg md:text-xl text-[#78716C] mt-2 leading-snug">Homemade Dog Food Made Simple.</p>
-          <p className="text-base text-[#A8A29E] mt-3 leading-relaxed max-w-md">
-            Fresh recipes, smart portions, safety checks, and a helpful AI assistant — all in one app.
-          </p>
-          <div className="mt-6 w-full max-w-xs">
-            <button
-              onClick={() => navigate('/wizard')}
-              className="w-full flex items-center justify-center gap-2 bg-[#F97316] hover:bg-[#EA6C0A] text-white font-semibold rounded-full py-3 px-6 text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F97316] focus-visible:ring-offset-2"
-            >
-              <ChefHat size={18} />
-              {profiles.length === 0 ? 'Start Your First Bowl' : 'Build a New Recipe'}
-            </button>
-          </div>
-          {recipes.length > 0 && (
-            <div className="mt-3">
-              <button
-                onClick={() => navigate('/recipes')}
-                className="inline-flex items-center justify-center gap-2 bg-white hover:bg-[#FDF6E9] text-[#1C1917] border border-[#E7E5E4] font-medium rounded-xl py-2.5 px-4 text-sm transition-colors"
-              >
-                My Recipes ({recipes.length})
-              </button>
+    <AppShell
+      active="home"
+      rightRail={
+        <>
+          <section className="doggo-card p-5">
+            <h3 className="text-[1.8rem] font-semibold text-[#2b2118]">First Bowl Wizard</h3>
+            <p className="mt-2 text-sm text-[#8b8378]">Create your dog's first homemade recipe in 4 simple steps.</p>
+            <div className="mt-4 space-y-3 text-sm">
+              {['Welcome', 'Your Dog', 'Recipe Type', 'Your Recipe'].map((step, i) => (
+                <div key={step} className="flex items-center justify-between rounded-xl border border-[#eadfce] bg-white px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="grid h-6 w-6 place-items-center rounded-full bg-[#f3ede3] text-xs font-semibold text-[#7f7469]">{i + 1}</span>
+                    <span>{step}</span>
+                  </div>
+                  <span className={i < 2 ? 'text-[#43a365]' : 'text-[#d1c5b4]'}>●</span>
+                </div>
+              ))}
             </div>
-          )}
+            <Button className="mt-4 w-full" onClick={() => navigate('/wizard')}>Continue Wizard</Button>
+            <p className="mt-2 text-center text-xs text-[#9a9186]">Takes about 2 minutes</p>
+          </section>
+
+          <section className="rounded-3xl border border-[#d6ebda] bg-[#f2fbf4] p-5 text-sm text-[#4d8c62]">
+            <h4 className="font-semibold">Safety first, always</h4>
+            <ul className="mt-2 space-y-1 text-xs leading-relaxed text-[#5f8c6a]">
+              <li>• All recipes use safe, vet-recommended ingredients</li>
+              <li>• Ingredients are checked against toxic-food database</li>
+              <li>• Education only, not a substitute for veterinary advice</li>
+            </ul>
+          </section>
+        </>
+      }
+    >
+      <section className="doggo-soft-card overflow-hidden p-7">
+        <div className="grid items-center gap-6 lg:grid-cols-[1fr_320px]">
+          <div>
+            <h1 className="doggo-section-title">Welcome back, {activeProfile?.name ?? 'Sarah'}! 👋</h1>
+            <p className="mt-2 text-[1.2rem] text-[#7f7469]">Let's make something amazing for your pup today.</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl bg-white/75 p-3">
+                <ShieldCheck className="text-[#43a365]" size={18} />
+                <p className="mt-1 text-sm font-semibold">Safety first</p>
+                <p className="text-xs text-[#867c71]">Every recipe is ingredient checked</p>
+              </div>
+              <div className="rounded-2xl bg-white/75 p-3">
+                <Calculator className="text-[#f59e0b]" size={18} />
+                <p className="mt-1 text-sm font-semibold">Portion math</p>
+                <p className="text-xs text-[#867c71]">Calorie & batch size calculated</p>
+              </div>
+              <div className="rounded-2xl bg-white/75 p-3">
+                <UtensilsCrossed className="text-[#f97316]" size={18} />
+                <p className="mt-1 text-sm font-semibold">Made for real life</p>
+                <p className="text-xs text-[#867c71]">Budget, pantry, voice & weekly plans</p>
+              </div>
+            </div>
+          </div>
+          <div className="relative">
+            <div className="absolute -inset-5 rounded-full bg-[#ffe6cf] blur-2xl" />
+            <img src="/chef-doggo-logo.webp" alt="Chef Doggo mascot" className="relative mx-auto h-64 w-64 object-contain" />
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-5 doggo-card p-5">
+        <h2 className="text-[1.6rem] font-semibold">Quick Actions</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {QUICK_ACTIONS.map(action => (
+            <button
+              type="button"
+              key={action.label}
+              onClick={() => navigate(action.to)}
+              className="group rounded-2xl border border-[#eadfce] bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-[#f2c8a0]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span className={[action.color, 'grid h-10 w-10 place-items-center rounded-xl'].join(' ')}>{action.icon}</span>
+                {action.tag && <span className="rounded-full bg-[#fff3e4] px-2 py-0.5 text-xs font-semibold text-[#f97316]">{action.tag}</span>}
+              </div>
+              <h3 className="mt-3 text-base font-semibold text-[#2b2118]">{action.label}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-[#8b8378]">{action.desc}</p>
+            </button>
+          ))}
         </div>
 
-        {/* Cooking-for banner */}
-        {activeProfile && (
-          <div className="mb-8">
-            <Card className="bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-[#F97316] font-semibold uppercase tracking-wide">Cooking for</p>
-                  <h2 className="text-lg font-bold text-[#1C1917] mt-0.5">{activeProfile.name} 🐶</h2>
-                  <p className="text-sm text-[#78716C]">{activeProfile.breed} · {activeProfile.weightLbs} lbs · {activeProfile.lifeStage}</p>
-                </div>
-                <Button size="sm" variant="secondary" onClick={() => navigate('/bowl-builder')} icon={<ArrowRight size={15} />}>
-                  Cook Now
-                </Button>
+        <div className="mt-3 rounded-2xl border border-[#eadfce] bg-[#fff9f0] p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-[#ffe6cf] text-[#f97316]">
+                <Mic size={18} />
+              </span>
+              <div>
+                <p className="font-semibold">Voice Cooking</p>
+                <p className="text-sm text-[#8b8378]">Hands-free, step-by-step cooking mode</p>
               </div>
-            </Card>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => navigate('/recipes')}>Start Voice Cooking</Button>
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* What can Chef Doggo do? */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-[#1C1917] mb-4">What can Chef Doggo do?</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {FEATURES.map(f => (
-              <Card
-                key={f.label}
-                hoverable
-                padding="none"
-                onClick={() => navigate(f.to)}
-                className={['p-5', f.highlight ? 'border-[#F59E0B] bg-amber-50' : ''].join(' ')}
-              >
-                <div className={['w-12 h-12 rounded-xl flex items-center justify-center p-2', f.highlight ? 'bg-[#F59E0B] text-white' : 'bg-orange-100 text-[#F97316]'].join(' ')}>
-                  {f.icon}
+      <section className="mt-5 grid gap-4 lg:grid-cols-2">
+        <div className="doggo-card p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[1.3rem] font-semibold">Recent Recipes</h3>
+            <button onClick={() => navigate('/recipes')} className="text-sm font-semibold text-[#f97316]">View all</button>
+          </div>
+          <div className="mt-4 space-y-3">
+            {(recentRecipes.length ? recentRecipes : FALLBACK_RECIPES).map(recipe => (
+              <div key={recipe.name} className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-white p-3">
+                <div className="grid h-14 w-14 place-items-center rounded-xl bg-[#fff4ea] text-xl">🥣</div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{recipe.name}</p>
+                  <p className="text-sm text-[#8b8378]">{recipe.cal} kcal/cup</p>
                 </div>
-                <p className="font-semibold text-base text-[#1C1917] mt-3">{f.label}</p>
-                <p className="text-sm text-[#78716C] mt-1 leading-snug">{f.desc}</p>
-                {f.highlight && <span className="inline-block mt-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">⭐ Popular</span>}
-              </Card>
+                <p className="text-xs text-[#9a9186]">{recipe.date}</p>
+              </div>
             ))}
           </div>
         </div>
 
-        {/* Why Chef Doggo? */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-[#1C1917] mb-4">Why Chef Doggo?</h2>
-          <div className="space-y-3">
-            {WHY_ITEMS.map(item => (
-              <div key={item.label} className="flex items-start gap-3 bg-white rounded-2xl border border-[#E7E5E4] p-4">
-                <span className="shrink-0 mt-0.5">{item.icon}</span>
-                <div>
-                  <p className="font-semibold text-[#1C1917] text-sm">{item.label}</p>
-                  <p className="text-xs text-[#78716C] mt-0.5">{item.desc}</p>
+        <div className="doggo-card p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[1.3rem] font-semibold">My Dogs</h3>
+            <button onClick={() => navigate('/profiles')} className="text-sm font-semibold text-[#f97316]">View all</button>
+          </div>
+          <div className="mt-4 space-y-3">
+            {(profiles.length ? profiles : FALLBACK_DOGS).map(dog => (
+              <div key={dog.id} className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-white p-3">
+                <img src="/chef-doggo-logo.webp" alt={dog.name} className="h-14 w-14 rounded-full border border-[#eadfce] object-cover" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">{dog.name}</p>
+                  <p className="text-sm text-[#8b8378]">{dog.breed} · {dog.ageYears} yrs</p>
                 </div>
+                <span className="rounded-xl bg-[#f9f1e6] px-3 py-1 text-xs font-semibold text-[#7f7469]">{dog.weightLbs} lbs</span>
               </div>
             ))}
+            <button onClick={() => navigate('/profiles/new')} className="w-full rounded-2xl border border-dashed border-[#f2c8a0] py-3 text-sm font-semibold text-[#f97316]">+ Add Another Dog</button>
           </div>
         </div>
+      </section>
 
-        {/* Vet disclaimer */}
-        <div className="rounded-2xl bg-green-50 border border-green-200 p-4 text-center">
-          <ShieldCheck size={24} className="text-[#22C55E] mx-auto mb-2" />
-          <p className="text-sm font-semibold text-green-800">Always consult your veterinarian</p>
-          <p className="text-xs text-green-700 mt-1 leading-relaxed">
-            Chef Doggo provides general educational guidance. Before starting a homemade diet — especially for puppies, seniors, or dogs with health conditions — please consult a licensed veterinarian or veterinary nutritionist.
-          </p>
-        </div>
-
-      </div>
-    </div>
+      <p className="mt-4 text-center text-xs text-[#9c9288]">Your data is private and secure. We never share your information.</p>
+    </AppShell>
   );
 }

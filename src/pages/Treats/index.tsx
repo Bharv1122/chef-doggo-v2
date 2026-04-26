@@ -1,137 +1,116 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Cake, Sparkles, ChefHat, IceCream, Gift, Star } from 'lucide-react';
-import { Header } from '../../components/layout/Header';
-import { PageWrapper } from '../../components/layout/PageWrapper';
-import { Card } from '../../components/ui/Card';
+import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
-import { Badge } from '../../components/ui/Badge';
-import { Disclaimer } from '../../components/ui/Disclaimer';
-import { TREAT_TEMPLATES } from '../../data/recipeTemplates';
-import { useRecipes } from '../../hooks/useRecipes';
-import { useDogProfiles } from '../../hooks/useDogProfiles';
-import { generateRecipe } from '../../utils/recipeGenerator';
 
-const TREAT_CATEGORIES = [
-  { id: 'all', label: 'All Treats', icon: <Sparkles size={16} /> },
-  { id: 'frozen', label: 'Frozen', icon: <IceCream size={16} /> },
-  { id: 'baked', label: 'Baked', icon: <Cake size={16} /> },
-  { id: 'occasion', label: 'Special Occasion', icon: <Gift size={16} /> },
-  { id: 'lick mat', label: 'Lick Mat', icon: <Star size={16} /> },
-];
+const TABS = ['Training Treats', 'Frozen Bites', 'Birthday Bowls', 'Everyday Rewards'];
 
-const SAFETY_RULES = [
-  'No chocolate', 'No xylitol', 'No grapes or raisins', 'No added sugar',
-  'No artificial sweeteners', 'No onion or garlic', 'No nutmeg', 'Plain ingredients only',
+const TREATS = [
+  { name: 'Blueberry Yogurt Bites', desc: 'Soft, tasty bites packed with antioxidants and probiotic goodness.', time: '20 min', level: 'Easy', tags: ['Dairy', 'Grain-Free'] },
+  { name: 'Cheesy Pumpkin Bones', desc: 'Gentle on tummies and perfect for training sessions.', time: '30 min', level: 'Easy', tags: ['Dairy', 'Vegetarian'] },
+  { name: 'Berry Bliss Paws', desc: 'Cool, refreshing frozen treats for warm days.', time: '10 min', level: 'Easy', tags: ['Fruit', 'Dairy-Free'] },
+  { name: 'Peanut Butter Bites', desc: 'A classic favorite for everyday good behavior.', time: '15 min', level: 'Easy', tags: ['Nut-Free Option', 'Grain-Free'] },
+  { name: 'Mini Birthday Stars', desc: 'Crispy little stars to celebrate your pup\'s big day!', time: '40 min', level: 'Moderate', tags: ['Grain-Free', 'Dog-Safe Color'] },
+  { name: 'Cinnamon Apple Chips', desc: 'Crispy, naturally sweet, and loaded with fiber.', time: '2 hr', level: 'Easy', tags: ['Fruit', 'Grain-Free'] },
+  { name: 'Minty Fresh Bones', desc: 'Breath-refreshing frozen bites with parsley & mint.', time: '15 min', level: 'Easy', tags: ['Herbal', 'Dairy-Free'] },
+  { name: 'Oatmeal Blueberry Drops', desc: 'Soft-baked drops with oats and juicy blueberries.', time: '25 min', level: 'Easy', tags: ['Grain', 'Fruit'] },
 ];
 
 export default function TreatsPage() {
   const navigate = useNavigate();
-  const { saveRecipe } = useRecipes();
-  const { activeProfile } = useDogProfiles();
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [loading, setLoading] = useState<string | null>(null);
-
-  const filtered = TREAT_TEMPLATES.filter(t => {
-    if (categoryFilter === 'all') return true;
-    return t.tags.some(tag => tag.toLowerCase().includes(categoryFilter));
-  });
-
-  async function handleGenerate(templateId: string) {
-    if (!activeProfile) { navigate('/profiles/new'); return; }
-    setLoading(templateId);
-    try {
-      const recipe = await generateRecipe({
-        dog: activeProfile,
-        recipeType: 'treat',
-        forceTemplateId: templateId,
-      });
-      const saved = saveRecipe(recipe);
-      navigate(`/recipes/${saved.id}`);
-    } catch {
-      alert('Could not generate treat recipe. Please try again.');
-    } finally {
-      setLoading(null);
-    }
-  }
 
   return (
-    <>
-      <Header title="Desserts & Treats" backTo="/" />
-      <PageWrapper>
-        <div className="mb-4 flex items-start gap-3">
-          <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
-            <Cake size={24} className="text-[#F97316]" />
-          </div>
+    <AppShell
+      active="treats"
+      rightRail={
+        <>
+          <section className="doggo-card p-5">
+            <h3 className="text-[1.35rem] font-semibold">Featured Seasonal Treats 🐾</h3>
+            <div className="mt-3 rounded-2xl border border-[#eadfce] bg-white p-3">
+              <div className="grid h-28 place-items-center rounded-xl bg-[#fff0de] text-5xl">🥕</div>
+              <p className="mt-2 rounded-full bg-[#eaf6ea] px-2 py-0.5 text-xs font-semibold text-[#43a365] inline-block">Spring Special</p>
+              <h4 className="mt-2 text-lg font-semibold">Carrot & Pumpkin Spring Snacks</h4>
+              <p className="mt-1 text-sm text-[#7b7065]">Bright, crunchy, and full of seasonal goodness.</p>
+              <Button size="sm" className="mt-3 w-full">View Recipe</Button>
+            </div>
+          </section>
+
+          <section className="doggo-card p-5">
+            <h3 className="text-[1.35rem] font-semibold">Birthday Bowl Spotlight</h3>
+            <div className="mt-3 rounded-2xl border border-[#eadfce] bg-white p-3">
+              <div className="grid h-24 place-items-center rounded-xl bg-[#f6efff] text-4xl">🎂</div>
+              <p className="mt-2 text-lg font-semibold">Pup's Party Bowl</p>
+              <p className="text-sm text-[#7b7065]">A festive, dog-safe bowl made for celebrations.</p>
+              <Button size="sm" className="mt-3 w-full">View Recipe</Button>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-[#d6ebda] bg-[#f2fbf4] p-5 text-sm text-[#4f8f64]">
+            <h4 className="font-semibold">Safety & Moderation</h4>
+            <ul className="mt-2 space-y-1 text-xs text-[#60896d]">
+              <li>✓ Use dog-safe ingredients only.</li>
+              <li>✓ Avoid toxic foods like chocolate, onions, grapes, xylitol.</li>
+              <li>✓ Treats should be 10% or less of daily calories.</li>
+              <li>✓ Introduce new ingredients slowly.</li>
+            </ul>
+          </section>
+        </>
+      }
+    >
+      <section className="doggo-soft-card overflow-hidden p-7">
+        <div className="grid items-center gap-6 lg:grid-cols-[1fr_300px]">
           <div>
-            <h2 className="font-bold text-[#1C1917]">Treats & Special Occasions</h2>
-            <p className="text-sm text-[#78716C] mt-0.5">Safe, dog-approved treats for every occasion — from training bites to birthday bowls.</p>
+            <h1 className="doggo-section-title">Treats & Special Bowls 💗</h1>
+            <p className="mt-2 text-[1.2rem] text-[#7f7469]">Wholesome, homemade treats and celebration bowls made with real ingredients—and lots of love.</p>
+            <div className="mt-5 flex flex-wrap gap-4 text-sm text-[#6f6459]">
+              <span>🛡️ Real ingredients</span>
+              <span>🧡 Made with love</span>
+              <span>✅ Vet-informed</span>
+            </div>
           </div>
+          <img src="/chef-doggo-logo.webp" alt="Chef Doggo mascot" className="mx-auto h-56 w-56 object-contain" />
         </div>
+      </section>
 
-        {/* Safety reminder */}
-        <Disclaimer variant="safety" title="Treat Safety Rules" className="mb-4">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1">
-            {SAFETY_RULES.map(r => <p key={r} className="text-xs">✓ {r}</p>)}
-          </div>
-          <p className="text-xs mt-2">Treats should make up no more than 10% of your dog's daily caloric intake.</p>
-        </Disclaimer>
-
-        {/* Category filter */}
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-4 -mx-4 px-4">
-          {TREAT_CATEGORIES.map(cat => (
+      <section className="mt-4 doggo-card p-5">
+        <div className="flex flex-wrap gap-2 border-b border-[#eadfce] pb-4">
+          {TABS.map((tab, index) => (
             <button
-              key={cat.id}
-              type="button"
-              onClick={() => setCategoryFilter(cat.id)}
-              className={['shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
-                categoryFilter === cat.id
-                  ? 'bg-[#F97316] border-[#F97316] text-white'
-                  : 'bg-white border-[#E7E5E4] text-[#78716C] hover:border-[#F97316]',
+              key={tab}
+              className={[
+                'rounded-xl px-4 py-2 text-sm font-semibold',
+                index === 0 ? 'bg-[#fff0de] text-[#f97316]' : 'text-[#7d7268] hover:bg-[#fff8ef]',
               ].join(' ')}
             >
-              {cat.icon}
-              {cat.label}
+              {tab}
             </button>
+          ))}
+          <div className="ml-auto">
+            <button className="rounded-xl border border-[#eadfce] bg-white px-4 py-2 text-sm text-[#7a6f64]">Sort by Newest</button>
+          </div>
+        </div>
+
+        <p className="mt-3 text-sm text-[#8f857a]">Showing 12 recipes</p>
+
+        <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {TREATS.map(treat => (
+            <article key={treat.name} className="rounded-2xl border border-[#eadfce] bg-white p-3">
+              <div className="grid h-36 place-items-center rounded-xl bg-[#fff4ea] text-4xl">🍪</div>
+              <p className="mt-2 text-lg font-semibold leading-tight">{treat.name}</p>
+              <p className="mt-1 line-clamp-2 text-sm text-[#7f7469]">{treat.desc}</p>
+              <p className="mt-2 text-xs text-[#8f857a]">⏱ {treat.time} &nbsp; • &nbsp; 🌟 {treat.level}</p>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {treat.tags.map(tag => (
+                  <span key={tag} className="rounded-full bg-[#f6efe4] px-2 py-0.5 text-xs font-semibold text-[#8f7d69]">{tag}</span>
+                ))}
+              </div>
+              <Button size="sm" className="mt-3 w-full" onClick={() => navigate('/wizard')}>View Recipe</Button>
+            </article>
           ))}
         </div>
 
-        {/* Treat templates */}
-        <div className="space-y-3">
-          {filtered.map(template => (
-            <Card key={template.id}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-[#1C1917] text-sm">{template.name}</h3>
-                  <p className="text-xs text-[#78716C] mt-1 leading-relaxed">{template.description}</p>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {template.tags.slice(0, 3).map(tag => (
-                      <Badge key={tag} variant="orange" className="text-xs">{tag}</Badge>
-                    ))}
-                    {template.budgetFriendly && <Badge variant="green">Budget-friendly</Badge>}
-                  </div>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-[#78716C]">
-                    <span>⏱ ~{template.cookTimeMinutes} min</span>
-                    <span>🌟 {template.skillLevel === 'beginner' ? 'Beginner' : 'Some experience'}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3">
-                <Button
-                  fullWidth
-                  size="sm"
-                  icon={<ChefHat size={15} />}
-                  onClick={() => handleGenerate(template.id)}
-                  loading={loading === template.id}
-                  disabled={!!loading}
-                >
-                  Make This Treat
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </PageWrapper>
-    </>
+        <button className="mt-5 w-full rounded-2xl border border-dashed border-[#f2c8a0] py-3 text-sm font-semibold text-[#f97316]">+ Load more tasty treats</button>
+      </section>
+    </AppShell>
   );
 }
