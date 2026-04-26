@@ -1,0 +1,80 @@
+import type { Session, User } from '@supabase/supabase-js';
+import { isSupabaseConfigured, supabase } from './supabase';
+
+export interface AuthResult {
+  user: User | null;
+  session: Session | null;
+  error: string | null;
+}
+
+function missingConfigResult(message = 'Supabase is not configured.'): AuthResult {
+  return { user: null, session: null, error: message };
+}
+
+export function getAppOrigin(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return window.location.origin;
+}
+
+export function getPasswordResetRedirectUrl(): string {
+  const origin = getAppOrigin();
+  return origin ? `${origin}/reset-password` : '';
+}
+
+export async function signInWithEmailPassword(email: string, password: string): Promise<AuthResult> {
+  if (!isSupabaseConfigured || !supabase) {
+    return missingConfigResult();
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  return {
+    user: data.user,
+    session: data.session,
+    error: error?.message ?? null,
+  };
+}
+
+export async function signUpWithEmailPassword(email: string, password: string): Promise<AuthResult> {
+  if (!isSupabaseConfigured || !supabase) {
+    return missingConfigResult();
+  }
+
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  return {
+    user: data.user,
+    session: data.session,
+    error: error?.message ?? null,
+  };
+}
+
+export async function signOutCurrentUser(): Promise<string | null> {
+  if (!isSupabaseConfigured || !supabase) {
+    return null;
+  }
+
+  const { error } = await supabase.auth.signOut();
+  return error?.message ?? null;
+}
+
+export async function sendPasswordResetEmail(email: string): Promise<string | null> {
+  if (!isSupabaseConfigured || !supabase) {
+    return 'Supabase is not configured.';
+  }
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: getPasswordResetRedirectUrl(),
+  });
+
+  return error?.message ?? null;
+}
+
+export async function updatePassword(password: string): Promise<string | null> {
+  if (!isSupabaseConfigured || !supabase) {
+    return 'Supabase is not configured.';
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+  return error?.message ?? null;
+}

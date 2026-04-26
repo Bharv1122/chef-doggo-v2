@@ -85,7 +85,7 @@ export default function PantryModePage() {
         budgetMode: false,
         pantryIngredientIds: pantryIds,
       });
-      const saved = saveRecipe(recipe);
+      const saved = await saveRecipe(recipe);
       navigate(`/recipes/${saved.id}`);
     } catch (e: any) {
       setError(e.message ?? 'Could not generate a recipe from those ingredients.');

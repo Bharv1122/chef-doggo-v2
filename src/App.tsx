@@ -1,21 +1,26 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { BottomNav } from './components/layout/BottomNav';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
-const Home          = lazy(() => import('./pages/Home'));
-const Wizard        = lazy(() => import('./pages/Wizard'));
-const DogProfiles   = lazy(() => import('./pages/DogProfiles'));
-const NewProfile    = lazy(() => import('./pages/DogProfiles/NewProfile'));
-const EditProfile   = lazy(() => import('./pages/DogProfiles/EditProfile'));
-const Recipes       = lazy(() => import('./pages/Recipes'));
-const RecipeDetail  = lazy(() => import('./pages/Recipes/RecipeDetail'));
-const BowlBuilder   = lazy(() => import('./pages/BowlBuilder'));
-const PantryMode    = lazy(() => import('./pages/PantryMode'));
-const Treats        = lazy(() => import('./pages/Treats'));
-const Calculator    = lazy(() => import('./pages/Calculator'));
-const Assistant     = lazy(() => import('./pages/Assistant'));
-const CookingMode   = lazy(() => import('./pages/CookingMode'));
-const VetExport     = lazy(() => import('./pages/VetExport'));
+const Login = lazy(() => import('./pages/Auth/Login'));
+const Signup = lazy(() => import('./pages/Auth/Signup'));
+const ResetPassword = lazy(() => import('./pages/Auth/ResetPassword'));
+
+const Home = lazy(() => import('./pages/Home'));
+const Wizard = lazy(() => import('./pages/Wizard'));
+const DogProfiles = lazy(() => import('./pages/DogProfiles'));
+const NewProfile = lazy(() => import('./pages/DogProfiles/NewProfile'));
+const EditProfile = lazy(() => import('./pages/DogProfiles/EditProfile'));
+const Recipes = lazy(() => import('./pages/Recipes'));
+const RecipeDetail = lazy(() => import('./pages/Recipes/RecipeDetail'));
+const BowlBuilder = lazy(() => import('./pages/BowlBuilder'));
+const PantryMode = lazy(() => import('./pages/PantryMode'));
+const Treats = lazy(() => import('./pages/Treats'));
+const Calculator = lazy(() => import('./pages/Calculator'));
+const Assistant = lazy(() => import('./pages/Assistant'));
+const CookingMode = lazy(() => import('./pages/CookingMode'));
+const VetExport = lazy(() => import('./pages/VetExport'));
 
 function LoadingFallback() {
   return (
@@ -28,32 +33,140 @@ function LoadingFallback() {
   );
 }
 
-// Full-screen pages that manage their own nav
 const NO_BOTTOM_NAV_PREFIXES = ['/cook/', '/vet-export/'];
+const AUTH_PATHS = ['/login', '/signup', '/reset-password'];
 
 function AppLayout() {
   const location = useLocation();
-  const showBottomNav = !NO_BOTTOM_NAV_PREFIXES.some(p => location.pathname.startsWith(p))
-    && location.pathname !== '/';
+
+  const isAuthPath = AUTH_PATHS.some(path => location.pathname.startsWith(path));
+  const showBottomNav =
+    !isAuthPath &&
+    !NO_BOTTOM_NAV_PREFIXES.some(prefix => location.pathname.startsWith(prefix)) &&
+    location.pathname !== '/';
 
   return (
     <>
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
-          <Route path="/"                    element={<Home />} />
-          <Route path="/wizard"              element={<Wizard />} />
-          <Route path="/profiles"            element={<DogProfiles />} />
-          <Route path="/profiles/new"        element={<NewProfile />} />
-          <Route path="/profiles/:id/edit"   element={<EditProfile />} />
-          <Route path="/recipes"             element={<Recipes />} />
-          <Route path="/recipes/:id"         element={<RecipeDetail />} />
-          <Route path="/bowl-builder"        element={<BowlBuilder />} />
-          <Route path="/pantry"              element={<PantryMode />} />
-          <Route path="/treats"             element={<Treats />} />
-          <Route path="/calculator"          element={<Calculator />} />
-          <Route path="/assistant"           element={<Assistant />} />
-          <Route path="/cook/:id"            element={<CookingMode />} />
-          <Route path="/vet-export/:id"      element={<VetExport />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wizard"
+            element={
+              <ProtectedRoute>
+                <Wizard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profiles"
+            element={
+              <ProtectedRoute>
+                <DogProfiles />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profiles/new"
+            element={
+              <ProtectedRoute>
+                <NewProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profiles/:id/edit"
+            element={
+              <ProtectedRoute>
+                <EditProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/recipes"
+            element={
+              <ProtectedRoute>
+                <Recipes />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/recipes/:id"
+            element={
+              <ProtectedRoute>
+                <RecipeDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bowl-builder"
+            element={
+              <ProtectedRoute>
+                <BowlBuilder />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/pantry"
+            element={
+              <ProtectedRoute>
+                <PantryMode />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/treats"
+            element={
+              <ProtectedRoute>
+                <Treats />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/calculator"
+            element={
+              <ProtectedRoute>
+                <Calculator />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/assistant"
+            element={
+              <ProtectedRoute>
+                <Assistant />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/cook/:id"
+            element={
+              <ProtectedRoute>
+                <CookingMode />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/vet-export/:id"
+            element={
+              <ProtectedRoute>
+                <VetExport />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
       {showBottomNav && <BottomNav />}

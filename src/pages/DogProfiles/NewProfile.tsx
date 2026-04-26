@@ -14,8 +14,8 @@ export default function NewProfilePage() {
       <Header title="Add Your Dog" backTo="/profiles" backLabel="My Dogs" />
       <PageWrapper>
         <DogProfileForm
-          onSave={data => {
-            createProfile(data);
+          onSave={async data => {
+            await createProfile(data);
             navigate('/profiles');
           }}
           onCancel={() => navigate('/profiles')}

@@ -4,6 +4,7 @@ import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { useDogProfiles } from '../../hooks/useDogProfiles';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useAuth } from '../../contexts/AuthContext';
 import { getAssistantResponse } from '../../data/assistantResponses';
 import { generateId } from '../../utils/storage';
 import type { ChatMessage } from '../../types/assistant';
@@ -26,7 +27,9 @@ const STARTER_CHAT: ChatMessage[] = [
 
 export default function AssistantPage() {
   const { activeProfile } = useDogProfiles();
-  const [messages, setMessages] = useLocalStorage<ChatMessage[]>('assistant-messages', STARTER_CHAT);
+  const { user } = useAuth();
+  const chatStorageKey = `assistant-messages:${user?.id ?? 'guest'}`;
+  const [messages, setMessages] = useLocalStorage<ChatMessage[]>(chatStorageKey, STARTER_CHAT);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);

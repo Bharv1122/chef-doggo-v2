@@ -9,7 +9,7 @@ type FormData = Omit<DogProfile, 'id' | 'createdAt' | 'updatedAt'>;
 
 interface Props {
   initial?: Partial<FormData>;
-  onSave: (data: FormData) => void;
+  onSave: (data: FormData) => void | Promise<void>;
   onCancel?: () => void;
   loading?: boolean;
 }

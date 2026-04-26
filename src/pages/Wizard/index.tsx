@@ -48,7 +48,7 @@ export default function WizardPage() {
     // Save profile if newly created
     let dogProfile: DogProfile;
     if (dog && !profiles.find(p => p.name === dog.name && p.breed === dog.breed)) {
-      dogProfile = createProfile(dog);
+      dogProfile = await createProfile(dog);
     } else {
       dogProfile = activeProfile!;
     }
@@ -59,7 +59,7 @@ export default function WizardPage() {
         recipeType,
         batchDuration: recipeType === 'batch_week' ? '7day' : '1day',
       });
-      const saved = saveRecipe(recipe);
+      const saved = await saveRecipe(recipe);
       navigate(`/recipes/${saved.id}`);
     } catch (e: any) {
       setError(e.message ?? 'Could not generate recipe. Please try again.');

@@ -28,8 +28,8 @@ export default function EditProfilePage() {
       <PageWrapper>
         <DogProfileForm
           initial={profile}
-          onSave={data => {
-            updateProfile(profile.id, data);
+          onSave={async data => {
+            await updateProfile(profile.id, data);
             navigate('/profiles');
           }}
           onCancel={() => navigate('/profiles')}

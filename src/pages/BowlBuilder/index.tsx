@@ -60,7 +60,7 @@ export default function BowlBuilderPage() {
         preferredProteinIds: [protein],
         budgetMode: budget === 'budget',
       });
-      const saved = saveRecipe(recipe);
+      const saved = await saveRecipe(recipe);
       navigate(`/recipes/${saved.id}`);
     } catch (e: any) {
       setError(e.message ?? 'Could not generate recipe. Please try again.');

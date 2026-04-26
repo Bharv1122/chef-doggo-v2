@@ -9,29 +9,51 @@ const DEFAULT_RECIPE = {
   id: 'sample',
   name: 'Turkey & Sweet Potato Bowl',
   description: 'A wholesome, gentle recipe packed with lean protein, fiber, and vitamins to support your dog\'s energy and overall health.',
+  type: 'batch_week' as const,
   ingredients: [
-    'Ground Turkey (93% lean) — 1 lb',
-    'Sweet Potato (peeled, diced) — 1 medium',
-    'Brown Rice (uncooked) — 1/2 cup',
-    'Green Peas (frozen) — 1/4 cup',
-    'Carrots (diced) — 1/2 cup',
-    'Olive Oil — 1 tsp',
-    'Egg — 1 large',
+    'Ground Turkey (93% lean) — about 3 lbs',
+    'Sweet Potato (peeled, diced) — about 2 lbs',
+    'Brown Rice (uncooked) — about 2 lbs',
+    'Green Peas (frozen) — about ½ lb',
+    'Carrots (diced) — about ½ lb',
+    'Olive Oil — 2 tbsp',
+    'Egg — 2 large',
   ],
   steps: [
     'Cook the rice according to package instructions. Set aside.',
     'Add diced sweet potato and carrots to a pot with water and simmer 10–12 minutes.',
     'Cook ground turkey in a skillet until no longer pink. Drain excess fat.',
     'Combine cooked rice, sweet potato, carrots, and peas. Stir well.',
-    'Add egg and olive oil. Mix thoroughly until everything is combined.',
-    'Let cool completely before serving. Portion into 1-cup servings.',
+    'Add eggs and olive oil. Mix thoroughly until everything is combined.',
+    'Let cool completely before serving. Divide into 14 meal-sized portions (about 1 cup each).',
+    'Refrigerate 3–4 days\' worth. Freeze the rest in airtight containers labeled with the date.',
+    'Thaw frozen portions overnight in the fridge. Serve at room temperature.',
   ],
+  stats: {
+    lifeStage: 'Adult',
+    portionSize: '1 cup',
+    caloriesPerCup: 420,
+    prepTime: 15,
+    cookTime: 35,
+    batchYieldCups: 14,
+  },
+  nutrition: {
+    calories: 420,
+    protein: 27,
+    proteinPct: 26,
+    fat: 16,
+    fatPct: 34,
+    carbs: 36,
+    carbsPct: 34,
+    fiber: 3,
+    fiberPct: 3,
+  },
 };
 
 export default function RecipeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getRecipe } = useRecipes();
+  const { getRecipe, toggleFavorite } = useRecipes();
 
   const recipe = id ? getRecipe(id) : undefined;
 
@@ -45,6 +67,33 @@ export default function RecipeDetailPage() {
   const instructions = recipe
     ? recipe.instructions.map(step => step.instruction)
     : DEFAULT_RECIPE.steps;
+
+  // ── Compute real stats from recipe data ──────────────────────────────────
+  const batchYieldCups = recipe
+    ? Math.round((recipe.batch.totalYieldGrams / 240) * 10) / 10
+    : DEFAULT_RECIPE.stats.batchYieldCups;
+
+  const caloriesPerCup = recipe
+    ? recipe.nutrition.caloriesPerServing
+    : DEFAULT_RECIPE.stats.caloriesPerCup;
+
+  const prepTime = recipe
+    ? recipe.instructions.find(s => s.stepNumber === 1)?.durationMinutes ?? 15
+    : DEFAULT_RECIPE.stats.prepTime;
+
+  const cookTime = recipe
+    ? recipe.instructions.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0) || 35
+    : DEFAULT_RECIPE.stats.cookTime;
+
+  const lifeStage = recipe
+    ? (recipe as any).lifeStage ?? 'Adult'
+    : DEFAULT_RECIPE.stats.lifeStage;
+
+  const recipeType = recipe?.type ?? DEFAULT_RECIPE.type;
+  const isBatch = recipeType === 'batch_week';
+  const batchLabel = isBatch
+    ? `${batchYieldCups} cups (~${Math.round(batchYieldCups / 2)} days)`
+    : `${batchYieldCups} cups`;
 
   return (
     <AppShell
@@ -78,15 +127,15 @@ export default function RecipeDetailPage() {
             <div className="mt-3 rounded-2xl border border-[#eadfce] bg-white p-4">
               <div className="mx-auto grid h-28 w-28 place-items-center rounded-full border-8 border-[#f7d09f] text-center">
                 <div>
-                  <p className="text-2xl font-bold">420</p>
+                  <p className="text-2xl font-bold">{caloriesPerCup}</p>
                   <p className="text-xs text-[#8b8378]">kcal</p>
                 </div>
               </div>
               <ul className="mt-3 space-y-1 text-sm text-[#6f6459]">
-                <li>Protein: 27g (26%)</li>
-                <li>Fat: 16g (34%)</li>
-                <li>Carbs: 36g (34%)</li>
-                <li>Fiber: 3g (3%)</li>
+                <li>Protein: {DEFAULT_RECIPE.nutrition.protein}g ({DEFAULT_RECIPE.nutrition.proteinPct}%)</li>
+                <li>Fat: {DEFAULT_RECIPE.nutrition.fat}g ({DEFAULT_RECIPE.nutrition.fatPct}%)</li>
+                <li>Carbs: {DEFAULT_RECIPE.nutrition.carbs}g ({DEFAULT_RECIPE.nutrition.carbsPct}%)</li>
+                <li>Fiber: {DEFAULT_RECIPE.nutrition.fiber}g ({DEFAULT_RECIPE.nutrition.fiberPct}%)</li>
               </ul>
             </div>
           </section>
@@ -104,7 +153,15 @@ export default function RecipeDetailPage() {
         <div className="grid gap-5 xl:grid-cols-[1fr_1.2fr]">
           <div>
             <div className="grid h-[320px] place-items-center rounded-3xl bg-[#fff0de] text-7xl">🍲</div>
-            <button className="mt-3 rounded-full bg-[#fff4ea] px-4 py-1 text-sm font-semibold text-[#f97316]">⭐ Favorite</button>
+            <button
+              className={[
+                'mt-3 rounded-full px-4 py-1 text-sm font-semibold',
+                recipe?.isFavorite ? 'bg-[#f97316] text-white' : 'bg-[#fff4ea] text-[#f97316]',
+              ].join(' ')}
+              onClick={() => id && void toggleFavorite(id)}
+            >
+              ⭐ {recipe?.isFavorite ? 'Favorited' : 'Favorite'}
+            </button>
           </div>
 
           <div>
@@ -113,16 +170,22 @@ export default function RecipeDetailPage() {
                 <h1 className="text-[2.4rem] leading-tight font-semibold text-[#2b2118]">{title}</h1>
                 <p className="mt-2 text-[1.05rem] leading-relaxed text-[#7d7268]">{description}</p>
               </div>
-              <button className="mt-2 text-[#d9cdbc]"><Heart /></button>
+              <button
+                className={recipe?.isFavorite ? 'mt-2 text-[#f97316]' : 'mt-2 text-[#d9cdbc]'}
+                onClick={() => id && void toggleFavorite(id)}
+                aria-label="Toggle recipe favorite"
+              >
+                <Heart fill={recipe?.isFavorite ? 'currentColor' : 'none'} />
+              </button>
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl bg-[#f4eef9] p-3 text-sm"><p className="font-semibold">Life Stage</p><p className="text-[#7f7469]">Adult</p></div>
-              <div className="rounded-2xl bg-[#fff4ea] p-3 text-sm"><p className="font-semibold">Portion Size</p><p className="text-[#7f7469]">1 cup</p></div>
-              <div className="rounded-2xl bg-[#fff0f0] p-3 text-sm"><p className="font-semibold">Calories/Cup</p><p className="text-[#7f7469]">420 kcal</p></div>
-              <div className="rounded-2xl bg-[#eef8ee] p-3 text-sm"><p className="font-semibold">Prep Time</p><p className="text-[#7f7469]">15 min</p></div>
-              <div className="rounded-2xl bg-[#fff4ea] p-3 text-sm"><p className="font-semibold">Cook Time</p><p className="text-[#7f7469]">35 min</p></div>
-              <div className="rounded-2xl bg-[#edf4ff] p-3 text-sm"><p className="font-semibold">Batch Yield</p><p className="text-[#7f7469]">4 cups</p></div>
+              <div className="rounded-2xl bg-[#f4eef9] p-3 text-sm"><p className="font-semibold">Life Stage</p><p className="text-[#7f7469]">{lifeStage}</p></div>
+              <div className="rounded-2xl bg-[#fff4ea] p-3 text-sm"><p className="font-semibold">Portion Size</p><p className="text-[#7f7469]">{recipe?.serving.cupsPerMeal ?? 1} cup</p></div>
+              <div className="rounded-2xl bg-[#fff0f0] p-3 text-sm"><p className="font-semibold">Calories/Cup</p><p className="text-[#7f7469]">{caloriesPerCup} kcal</p></div>
+              <div className="rounded-2xl bg-[#eef8ee] p-3 text-sm"><p className="font-semibold">Prep Time</p><p className="text-[#7f7469]">{prepTime} min</p></div>
+              <div className="rounded-2xl bg-[#fff4ea] p-3 text-sm"><p className="font-semibold">Cook Time</p><p className="text-[#7f7469]">{cookTime} min</p></div>
+              <div className="rounded-2xl bg-[#edf4ff] p-3 text-sm"><p className="font-semibold">Batch Yield</p><p className="text-[#7f7469]">{batchLabel}</p></div>
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
@@ -162,9 +225,14 @@ export default function RecipeDetailPage() {
       <section className="mt-4 grid gap-4 lg:grid-cols-2">
         <article className="doggo-card p-5">
           <h3 className="text-[1.2rem] font-semibold">Storage Instructions</h3>
-          <p className="mt-2 text-sm text-[#6f6459]">Refrigerator: store in an airtight container up to 4 days.</p>
-          <p className="mt-1 text-sm text-[#6f6459]">Freezer: freeze in 1-cup portions for up to 3 months.</p>
-          <p className="mt-1 text-sm text-[#6f6459]">Thaw overnight in the refrigerator before serving.</p>
+          <p className="mt-2 text-sm text-[#6f6459]">Refrigerator: store in an airtight container up to {recipe?.storage.fridgeDays ?? 4} days.</p>
+          <p className="mt-1 text-sm text-[#6f6459]">Freezer: freeze in 1-cup portions for up to {recipe?.storage.freezerMonths ?? 3} months.</p>
+          <p className="mt-1 text-sm text-[#6f6459]">{recipe?.storage.thawInstructions ?? 'Thaw overnight in the refrigerator before serving.'}</p>
+          {isBatch && (
+            <p className="mt-2 text-sm font-medium text-[#f97316]">
+              🧊 This batch makes {batchYieldCups} cups — keep {Math.min(Math.round(batchYieldCups / 7 * 3), Math.round(batchYieldCups))} cups in the fridge, freeze the rest.
+            </p>
+          )}
         </article>
 
         <article className="doggo-card p-5">

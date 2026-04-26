@@ -14,17 +14,17 @@ const FEATURED = [
 ];
 
 const MOCK_RECIPES = [
-  { id: 'r1', name: 'Salmon & Quinoa Power Bowl', desc: 'Omega-rich salmon with quinoa, spinach, and pumpkin.', cal: 410, time: 30 },
-  { id: 'r2', name: 'Lamb & Veggie Stew', desc: 'Tender lamb with butternut squash, carrots, and green beans.', cal: 460, time: 45 },
-  { id: 'r3', name: 'Chicken & Pumpkin Bowl', desc: 'Chicken, pumpkin, and oats for a cozy, fiber-rich meal.', cal: 360, time: 30 },
-  { id: 'r4', name: 'White Fish & Potato Bowl', desc: 'Mild white fish with potatoes, peas, and carrots.', cal: 390, time: 35 },
-  { id: 'r5', name: 'Venison & Berry Bowl', desc: 'Lean venison with blueberries and sweet potato.', cal: 430, time: 42 },
-  { id: 'r6', name: 'Egg & Veggie Scramble', desc: 'Eggs with spinach, carrots, and brown rice.', cal: 340, time: 25 },
+  { id: 'r1', name: 'Salmon & Quinoa Power Bowl', desc: 'Omega-rich salmon with quinoa, spinach, and pumpkin.', cal: 410, time: 30, isFavorite: false },
+  { id: 'r2', name: 'Lamb & Veggie Stew', desc: 'Tender lamb with butternut squash, carrots, and green beans.', cal: 460, time: 45, isFavorite: false },
+  { id: 'r3', name: 'Chicken & Pumpkin Bowl', desc: 'Chicken, pumpkin, and oats for a cozy, fiber-rich meal.', cal: 360, time: 30, isFavorite: false },
+  { id: 'r4', name: 'White Fish & Potato Bowl', desc: 'Mild white fish with potatoes, peas, and carrots.', cal: 390, time: 35, isFavorite: false },
+  { id: 'r5', name: 'Venison & Berry Bowl', desc: 'Lean venison with blueberries and sweet potato.', cal: 430, time: 42, isFavorite: false },
+  { id: 'r6', name: 'Egg & Veggie Scramble', desc: 'Eggs with spinach, carrots, and brown rice.', cal: 340, time: 25, isFavorite: false },
 ];
 
 export default function RecipesPage() {
   const navigate = useNavigate();
-  const { recipes } = useRecipes();
+  const { recipes, toggleFavorite } = useRecipes();
 
   const cards = recipes.length
     ? recipes.map(recipe => ({
@@ -33,6 +33,7 @@ export default function RecipesPage() {
         desc: recipe.description,
         cal: recipe.nutrition.caloriesPerServing,
         time: recipe.instructions.reduce((sum, step) => sum + (step.durationMinutes ?? 5), 0),
+        isFavorite: recipe.isFavorite,
       }))
     : MOCK_RECIPES;
 
@@ -143,8 +144,15 @@ export default function RecipesPage() {
               </div>
               <div className="mt-3 flex gap-2">
                 <Button size="sm" className="flex-1" onClick={() => navigate(`/recipes/${recipe.id}`)}>View Recipe</Button>
-                <button className="grid h-10 w-10 place-items-center rounded-xl border border-[#eadfce] text-[#c5b8a8] hover:text-[#f97316]">
-                  <Heart size={16} />
+                <button
+                  className={[
+                    'grid h-10 w-10 place-items-center rounded-xl border border-[#eadfce] transition-colors',
+                    recipe.isFavorite ? 'text-[#f97316] bg-[#fff4ea]' : 'text-[#c5b8a8] hover:text-[#f97316]',
+                  ].join(' ')}
+                  onClick={() => void toggleFavorite(recipe.id)}
+                  aria-label="Toggle recipe favorite"
+                >
+                  <Heart size={16} fill={recipe.isFavorite ? 'currentColor' : 'none'} />
                 </button>
               </div>
             </article>

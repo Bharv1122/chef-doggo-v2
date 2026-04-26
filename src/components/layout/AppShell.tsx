@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
   Bell,
   BookOpen,
@@ -10,9 +10,11 @@ import {
   Settings,
   Sparkles,
   Plus,
+  LogOut,
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { Button } from '../ui/Button';
+import { useAuth } from '../../contexts/AuthContext';
 
 type MainNavKey = 'home' | 'recipes' | 'dogs' | 'treats' | 'assistant';
 
@@ -40,6 +42,16 @@ const SIDE_ITEMS = [
 ];
 
 export function AppShell({ active, children, rightRail }: AppShellProps) {
+  const navigate = useNavigate();
+  const { user, signOut, isSupabaseEnabled } = useAuth();
+
+  const displayName = user?.email?.split('@')[0] ?? 'Dog Parent';
+
+  async function handleSignOut() {
+    await signOut();
+    navigate('/login');
+  }
+
   return (
     <div className="min-h-screen bg-[#fffbf5]">
       <header className="sticky top-0 z-50 border-b border-[#eadfce] bg-[#fffbf5]/95 backdrop-blur-sm">
@@ -69,7 +81,7 @@ export function AppShell({ active, children, rightRail }: AppShellProps) {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
-            <Button size="sm" icon={<Plus size={16} />} onClick={() => (window.location.href = '/wizard')}>
+            <Button size="sm" icon={<Plus size={16} />} onClick={() => navigate('/wizard')}>
               Start New Bowl
             </Button>
             <button className="grid h-11 w-11 place-items-center rounded-full border border-[#eadfce] bg-white text-[#7f7469]">
@@ -78,10 +90,21 @@ export function AppShell({ active, children, rightRail }: AppShellProps) {
             <div className="flex items-center gap-2 rounded-full border border-[#eadfce] bg-white px-2 py-1.5">
               <img src="/chef-doggo-logo.webp" alt="User" className="h-9 w-9 rounded-full object-cover" />
               <div className="hidden pr-1 sm:block">
-                <p className="text-sm font-semibold leading-tight text-[#2b2118]">Sarah</p>
+                <p className="text-sm font-semibold leading-tight text-[#2b2118]">{displayName}</p>
                 <p className="text-xs leading-tight text-[#8b8378]">Dog Parent</p>
               </div>
             </div>
+            {isSupabaseEnabled && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<LogOut size={15} />}
+                onClick={handleSignOut}
+                className="hidden sm:inline-flex"
+              >
+                Logout
+              </Button>
+            )}
           </div>
         </div>
       </header>
