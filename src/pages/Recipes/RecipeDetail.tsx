@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Heart, ShoppingCart, Printer, Play, DollarSign,
-  ChevronDown, ChevronUp, Package, Thermometer, Info,
+  Heart,
+  ShoppingCart,
+  Printer,
+  Play,
+  DollarSign,
+  Package,
+  Thermometer,
+  Info,
+  AlertTriangle,
 } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
-import { Card, CardSection } from '../../components/ui/Card';
+import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Disclaimer } from '../../components/ui/Disclaimer';
@@ -14,12 +21,23 @@ import { ChefDoggoCheck } from '../../components/recipe/ChefDoggoCheck';
 import { SupplementChecklist } from '../../components/supplements/SupplementChecklist';
 import { ShoppingList } from '../../components/shopping/ShoppingList';
 import { IngredientCard } from '../../components/ingredients/IngredientCard';
+import { NutritionBreakdownChart } from '../../components/recipe/NutritionBreakdownChart';
 import { useRecipes } from '../../hooks/useRecipes';
 import { useDogProfiles } from '../../hooks/useDogProfiles';
 import { applyBudgetSwaps, swapIngredient } from '../../utils/substitutions';
-import { formatRecipeType, formatCalories, formatDate } from '../../utils/formatting';
+import { formatRecipeType, formatCalories } from '../../utils/formatting';
+import { detectRecipeAllergens, getRecipePhoto, type CommonAllergen } from '../../utils/recipeInsights';
 
 const SCALE_OPTIONS = [1, 2, 3, 4] as const;
+
+const ALLERGEN_LABELS: Record<CommonAllergen, string> = {
+  chicken: 'Chicken',
+  beef: 'Beef',
+  dairy: 'Dairy',
+  wheat: 'Wheat',
+  soy: 'Soy',
+  eggs: 'Eggs',
+};
 
 export default function RecipeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -45,12 +63,15 @@ export default function RecipeDetailPage() {
   }
 
   const dog = getProfile(recipe.dogProfileId);
-  const scaledIngredients = recipe.ingredients.map(ing => ({
-    ...ing,
-    amountGrams: Math.round(ing.amountGrams * scale),
-    amountCups: ing.amountCups ? Math.round(ing.amountCups * scale * 4) / 4 : undefined,
-    amountOz: ing.amountOz ? Math.round(ing.amountOz * scale * 10) / 10 : undefined,
-    groceryFriendlyAmount: `${scale > 1 ? `${scale}× ` : ''}${ing.groceryFriendlyAmount}`,
+  const recipePhoto = getRecipePhoto(recipe);
+  const allergens = detectRecipeAllergens(recipe);
+
+  const scaledIngredients = recipe.ingredients.map(ingredient => ({
+    ...ingredient,
+    amountGrams: Math.round(ingredient.amountGrams * scale),
+    amountCups: ingredient.amountCups ? Math.round(ingredient.amountCups * scale * 4) / 4 : undefined,
+    amountOz: ingredient.amountOz ? Math.round(ingredient.amountOz * scale * 10) / 10 : undefined,
+    groceryFriendlyAmount: `${scale > 1 ? `${scale}× ` : ''}${ingredient.groceryFriendlyAmount}`,
   }));
 
   const scaledServing = {
@@ -79,27 +100,32 @@ export default function RecipeDetailPage() {
 
   const handleMakeCheaper = () => {
     if (budgetApplied) return;
+
     const result = applyBudgetSwaps(recipe.ingredients, dog);
+
     if (result.swapped.length > 0) {
       updateRecipe(recipe.id, { ingredients: result.ingredients, updatedAt: new Date().toISOString() });
       setSwapNotice(result.swapped);
       setBudgetApplied(true);
-    } else {
-      setSwapNotice(['This recipe is already using budget-friendly ingredients!']);
-      setBudgetApplied(true);
+      return;
     }
+
+    setSwapNotice(['This recipe is already using budget-friendly ingredients!']);
+    setBudgetApplied(true);
   };
 
   const handleSwap = (fromId: string, toId: string) => {
     const result = swapIngredient(recipe.ingredients, fromId, toId, dog);
+
     if (result.safety.safe) {
       updateRecipe(recipe.id, { ingredients: result.ingredients, updatedAt: new Date().toISOString() });
-    } else {
-      alert(result.safety.errors.join('\n'));
+      return;
     }
+
+    alert(result.safety.errors.join('\n'));
   };
 
-  const TABS = [
+  const tabs = [
     { id: 'recipe' as const, label: 'Recipe' },
     { id: 'shopping' as const, label: '🛒 Shopping' },
     ...(recipe.supplements.length > 0 ? [{ id: 'supplements' as const, label: '💊 Supplements' }] : []),
@@ -117,89 +143,111 @@ export default function RecipeDetailPage() {
           </button>
         }
       />
+
       <PageWrapper>
-        {/* Hero card */}
-        <Card className="mb-4">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="flex flex-wrap gap-2 mb-2">
-                <Badge variant="orange">{formatRecipeType(recipe.type)}</Badge>
-                {dog && <Badge variant="gray">{dog.name}</Badge>}
+        <Card className="mb-4 overflow-hidden" padding="none">
+          <div className="relative h-56 sm:h-64 w-full">
+            <img src={recipePhoto.src} alt={recipePhoto.alt} className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
+            <p className="absolute bottom-3 left-3 text-xs font-semibold text-white/95 tracking-wide">{recipePhoto.label}</p>
+          </div>
+
+          <div className="p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <Badge variant="orange">{formatRecipeType(recipe.type)}</Badge>
+                  {dog && <Badge variant="gray">{dog.name}</Badge>}
+                </div>
+                <h1 className="text-lg font-bold text-[#1C1917] leading-snug">{recipe.name}</h1>
+                <p className="text-sm text-[#78716C] mt-1">{recipe.description}</p>
               </div>
-              <h1 className="text-lg font-bold text-[#1C1917] leading-snug">{recipe.name}</h1>
-              <p className="text-sm text-[#78716C] mt-1">{recipe.description}</p>
             </div>
-          </div>
 
-          {/* Nutrition quick stats */}
-          <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-            {quickStats.map(s => (
-              <div key={s.label} className="bg-[#FDF6E9] rounded-xl p-2.5">
-                <p className="text-sm font-bold text-[#1C1917]">{s.value}</p>
-                <p className="text-xs text-[#78716C]">{s.label}</p>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-center text-[#A8A29E] mt-2 italic">
-            {recipe.type === 'treat'
-              ? 'Treat stats reflect the recommended 10% daily treat-calorie cap.'
-              : 'All values are estimates'}
-          </p>
-
-          {/* Action buttons */}
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <Button icon={<Play size={15} />} onClick={() => navigate(`/cook/${recipe.id}`)}>Cook Mode</Button>
-            <Button variant="secondary" icon={<DollarSign size={15} />} onClick={handleMakeCheaper} disabled={budgetApplied}>
-              {budgetApplied ? 'Budget Applied' : 'Make It Cheaper'}
-            </Button>
-            <Button variant="secondary" icon={<Printer size={15} />} onClick={() => navigate(`/vet-export/${recipe.id}`)}>
-              Vet Export
-            </Button>
-            <Button variant="secondary" icon={<ShoppingCart size={15} />} onClick={() => setActiveTab('shopping')}>
-              Shopping List
-            </Button>
-          </div>
-
-          {swapNotice.length > 0 && (
-            <div className="mt-3 rounded-xl bg-green-50 border border-green-200 p-3 text-xs text-green-800 space-y-1">
-              <p className="font-semibold">Budget swaps applied:</p>
-              {swapNotice.map((s, i) => <p key={i}>• {s}</p>)}
-            </div>
-          )}
-
-          {/* Scale selector */}
-          <div className="mt-4">
-            <p className="text-xs font-medium text-[#78716C] mb-2">Scale recipe:</p>
-            <div className="flex gap-2">
-              {SCALE_OPTIONS.map(s => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setScale(s)}
-                  className={['flex-1 py-1.5 rounded-lg text-sm font-medium border transition-colors',
-                    scale === s ? 'bg-[#F97316] border-[#F97316] text-white' : 'bg-white border-[#E7E5E4] text-[#78716C] hover:border-[#F97316]',
-                  ].join(' ')}
-                >
-                  {s}×
-                </button>
+            <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+              {quickStats.map(stat => (
+                <div key={stat.label} className="bg-[#FDF6E9] rounded-xl p-2.5">
+                  <p className="text-sm font-bold text-[#1C1917]">{stat.value}</p>
+                  <p className="text-xs text-[#78716C]">{stat.label}</p>
+                </div>
               ))}
+            </div>
+
+            <p className="text-xs text-center text-[#A8A29E] mt-2 italic">
+              {recipe.type === 'treat'
+                ? 'Treat stats reflect the recommended 10% daily treat-calorie cap.'
+                : 'All values are estimates'}
+            </p>
+
+            {allergens.length > 0 && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
+                <p className="text-sm font-semibold text-red-800 flex items-center gap-2">
+                  <AlertTriangle size={16} /> Allergen Warning
+                </p>
+                <p className="text-xs text-red-700 mt-1">
+                  This recipe contains potential allergens:
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {allergens.map(allergen => (
+                    <Badge key={allergen} variant="red">{ALLERGEN_LABELS[allergen]}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Button icon={<Play size={15} />} onClick={() => navigate(`/cook/${recipe.id}`)}>Cook Mode</Button>
+              <Button variant="secondary" icon={<DollarSign size={15} />} onClick={handleMakeCheaper} disabled={budgetApplied}>
+                {budgetApplied ? 'Budget Applied' : 'Make It Cheaper'}
+              </Button>
+              <Button variant="secondary" icon={<Printer size={15} />} onClick={() => navigate(`/vet-export/${recipe.id}`)}>
+                Vet Export
+              </Button>
+              <Button variant="secondary" icon={<ShoppingCart size={15} />} onClick={() => setActiveTab('shopping')}>
+                Shopping List
+              </Button>
+            </div>
+
+            {swapNotice.length > 0 && (
+              <div className="mt-3 rounded-xl bg-green-50 border border-green-200 p-3 text-xs text-green-800 space-y-1">
+                <p className="font-semibold">Budget swaps applied:</p>
+                {swapNotice.map((swap, index) => <p key={index}>• {swap}</p>)}
+              </div>
+            )}
+
+            <div className="mt-4">
+              <p className="text-xs font-medium text-[#78716C] mb-2">Scale recipe:</p>
+              <div className="flex gap-2">
+                {SCALE_OPTIONS.map(option => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setScale(option)}
+                    className={[
+                      'flex-1 py-1.5 rounded-lg text-sm font-medium border transition-colors',
+                      scale === option ? 'bg-[#F97316] border-[#F97316] text-white' : 'bg-white border-[#E7E5E4] text-[#78716C] hover:border-[#F97316]',
+                    ].join(' ')}
+                  >
+                    {option}×
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </Card>
 
-        {/* Chef Doggo Check */}
         <div className="mb-4">
           <ChefDoggoCheck recipe={recipe} warnings={recipe.safetyNotes.slice(0, 3)} />
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-[#E7E5E4] mb-4">
-          {TABS.map(tab => (
+        <div className="flex border-b border-[#E7E5E4] mb-4 overflow-x-auto">
+          {tabs.map(tab => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={['px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
+              className={[
+                'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap',
                 activeTab === tab.id ? 'border-[#F97316] text-[#F97316]' : 'border-transparent text-[#78716C] hover:text-[#1C1917]',
               ].join(' ')}
             >
@@ -208,20 +256,26 @@ export default function RecipeDetailPage() {
           ))}
         </div>
 
-        {/* Tab content */}
         {activeTab === 'recipe' && (
           <div className="space-y-4">
-            {/* Ingredients */}
+            <Card>
+              <h2 className="font-semibold text-[#1C1917] mb-3">Nutritional Breakdown</h2>
+              <NutritionBreakdownChart recipe={recipe} />
+            </Card>
+
             <Card>
               <h2 className="font-semibold text-[#1C1917] mb-3">Ingredients</h2>
               <div className="space-y-2">
-                {scaledIngredients.map(ing => (
-                  <IngredientCard key={ing.ingredientId} ingredient={ing} onSwap={toId => handleSwap(ing.ingredientId, toId)} />
+                {scaledIngredients.map(ingredient => (
+                  <IngredientCard
+                    key={ingredient.ingredientId}
+                    ingredient={ingredient}
+                    onSwap={toId => handleSwap(ingredient.ingredientId, toId)}
+                  />
                 ))}
               </div>
             </Card>
 
-            {/* Instructions */}
             <Card>
               <h2 className="font-semibold text-[#1C1917] mb-3">Instructions</h2>
               <ol className="space-y-4">
@@ -247,7 +301,6 @@ export default function RecipeDetailPage() {
               </ol>
             </Card>
 
-            {/* Batch info (batch_week type) */}
             {recipe.type === 'batch_week' && (
               <Card>
                 <h2 className="font-semibold text-[#1C1917] mb-3 flex items-center gap-2">
@@ -259,17 +312,16 @@ export default function RecipeDetailPage() {
                     { label: 'Containers needed', value: String(recipe.batch.numberOfContainers) },
                     { label: 'Keep in fridge', value: `${recipe.batch.fridgeMeals} meals` },
                     { label: 'Freeze', value: `${recipe.batch.freezerMeals} meals` },
-                  ].map(s => (
-                    <div key={s.label} className="bg-[#FDF6E9] rounded-xl p-3">
-                      <p className="font-semibold text-[#1C1917]">{s.value}</p>
-                      <p className="text-xs text-[#78716C]">{s.label}</p>
+                  ].map(stat => (
+                    <div key={stat.label} className="bg-[#FDF6E9] rounded-xl p-3">
+                      <p className="font-semibold text-[#1C1917]">{stat.value}</p>
+                      <p className="text-xs text-[#78716C]">{stat.label}</p>
                     </div>
                   ))}
                 </div>
               </Card>
             )}
 
-            {/* Storage */}
             <Card>
               <h2 className="font-semibold text-[#1C1917] mb-3 flex items-center gap-2">
                 <Thermometer size={18} className="text-[#F97316]" /> Storage & Serving
@@ -289,14 +341,13 @@ export default function RecipeDetailPage() {
               </div>
             </Card>
 
-            {/* Transition guide (full meals only) */}
             {recipe.transitionGuide && (
               <Card>
                 <h2 className="font-semibold text-[#1C1917] mb-3">7-Day Transition Guide</h2>
                 <ol className="space-y-2">
-                  {recipe.transitionGuide.map((step, i) => (
-                    <li key={i} className="text-sm text-[#78716C] flex items-start gap-2">
-                      <span className="text-[#F97316] font-semibold shrink-0">{i + 1}.</span>
+                  {recipe.transitionGuide.map((step, index) => (
+                    <li key={index} className="text-sm text-[#78716C] flex items-start gap-2">
+                      <span className="text-[#F97316] font-semibold shrink-0">{index + 1}.</span>
                       <span>{step}</span>
                     </li>
                   ))}
@@ -304,16 +355,14 @@ export default function RecipeDetailPage() {
               </Card>
             )}
 
-            {/* Safety notes */}
             {recipe.safetyNotes.length > 0 && (
               <Disclaimer variant="safety" title="Safety Notes">
                 <ul className="space-y-1">
-                  {recipe.safetyNotes.map((note, i) => <li key={i} className="text-xs">• {note}</li>)}
+                  {recipe.safetyNotes.map((note, index) => <li key={index} className="text-xs">• {note}</li>)}
                 </ul>
               </Disclaimer>
             )}
 
-            {/* Vet disclaimer */}
             <Disclaimer variant="warning" title="Veterinary Disclaimer">
               <p className="text-xs">{recipe.vetDisclaimer}</p>
             </Disclaimer>
