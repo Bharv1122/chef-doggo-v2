@@ -167,6 +167,38 @@ export default function VetExportPage() {
             </div>
           </section>
 
+          {/* Veterinarian Review & Sign-off */}
+          <section className="border-2 border-[#0f766e] rounded-lg p-4 bg-[#f0fdfa] page-break-before">
+            <h2 className="font-bold text-[#0f766e] text-lg mb-3">✍️ Veterinarian Review &amp; Approval</h2>
+            <p className="text-xs text-[#0f766e] mb-4">For the reviewing veterinarian to complete and sign.</p>
+
+            <div className="space-y-2 mb-4">
+              {[
+                'Approved as proposed',
+                'Approved with modifications (see notes below)',
+                'Not recommended at this time',
+              ].map(label => (
+                <div key={label} className="flex items-center gap-2 text-sm text-[#1C1917]">
+                  <span className="inline-block w-4 h-4 border-2 border-[#0f766e] rounded-sm" />
+                  {label}
+                </div>
+              ))}
+            </div>
+
+            <p className="text-sm font-semibold text-[#1C1917] mb-1">Notes / Modifications:</p>
+            <div className="h-24 border border-[#9ca3af] rounded bg-white mb-4"
+                 style={{ backgroundImage: 'repeating-linear-gradient(transparent, transparent 22px, #e5e7eb 22px, #e5e7eb 23px)' }} />
+
+            <div className="grid grid-cols-3 gap-4 text-xs text-[#78716C]">
+              <div><div className="border-b border-[#374151] h-7" /><div className="mt-1">Veterinarian Signature</div></div>
+              <div><div className="border-b border-[#374151] h-7" /><div className="mt-1">Printed Name</div></div>
+              <div><div className="border-b border-[#374151] h-7" /><div className="mt-1">Date</div></div>
+              <div><div className="border-b border-[#374151] h-7" /><div className="mt-1">Clinic Name</div></div>
+              <div><div className="border-b border-[#374151] h-7" /><div className="mt-1">License #</div></div>
+              <div><div className="border-b border-[#374151] h-7" /><div className="mt-1">Phone / Email</div></div>
+            </div>
+          </section>
+
           {/* Disclaimer */}
           <section className="border-t border-[#E7E5E4] pt-4">
             <p className="text-xs text-[#78716C] leading-relaxed italic">
