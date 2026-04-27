@@ -131,7 +131,7 @@ export default function BowlBuilderPage() {
           )}
 
           <Button fullWidth size="lg" loading={loading} icon={<ChefHat size={18} />} onClick={handleGenerate} disabled={!dog}>
-            {loading ? 'Generating Recipe…' : 'Generate Recipe'}
+            {loading ? 'Generating recipe & image…' : 'Generate Recipe'}
           </Button>
         </div>
       </PageWrapper>

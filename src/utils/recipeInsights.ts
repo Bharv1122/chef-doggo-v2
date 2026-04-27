@@ -1,5 +1,6 @@
 import { getIngredientById } from '../data/ingredients';
 import type { Recipe } from '../types/recipe';
+import { DEFAULT_RECIPE_IMAGE_URL } from './recipeImageGenerator';
 
 export type RecipePhotoKind = 'chicken' | 'beef' | 'fish' | 'veggie' | 'treats';
 export type CommonAllergen = 'chicken' | 'beef' | 'dairy' | 'wheat' | 'soy' | 'eggs';
@@ -122,12 +123,21 @@ export function getRecipePhoto(recipe: Recipe): { src: string; alt: string; kind
   const kind = classifyPhotoKind(recipe);
   const meta = PHOTO_META[kind];
 
+  if (recipe.imageUrl) {
+    return {
+      src: recipe.imageUrl,
+      alt: `${recipe.name} homemade dog food`,
+      kind,
+      label: meta.label,
+    };
+  }
+
   if (!PHOTO_CACHE.has(kind)) {
     PHOTO_CACHE.set(kind, buildPhotoDataUri(meta));
   }
 
   return {
-    src: PHOTO_CACHE.get(kind)!,
+    src: PHOTO_CACHE.get(kind) ?? DEFAULT_RECIPE_IMAGE_URL,
     alt: meta.alt,
     kind,
     label: meta.label,

@@ -16,6 +16,7 @@ import { Button } from '../../components/ui/Button';
 import { useDogProfiles } from '../../hooks/useDogProfiles';
 import { useRecipes } from '../../hooks/useRecipes';
 import { useAuth } from '../../contexts/AuthContext';
+import { getRecipePhoto } from '../../utils/recipeInsights';
 
 const QUICK_ACTIONS = [
   { label: 'Full Meals', desc: 'Create complete balanced homemade recipes', icon: <ChefHat size={18} />, to: '/bowl-builder', color: 'bg-[#fff0de] text-[#f97316]' },
@@ -39,6 +40,7 @@ export default function HomePage() {
     name: recipe.name,
     date: new Date(recipe.createdAt).toLocaleDateString(),
     cal: recipe.nutrition.caloriesPerServing,
+    photo: getRecipePhoto(recipe),
   }));
 
   return (
@@ -161,7 +163,15 @@ export default function HomePage() {
                   className="flex w-full items-center gap-3 rounded-2xl border border-[#eadfce] bg-white p-3 text-left hover:bg-[#fff8ef]"
                   onClick={() => navigate(`/recipes/${recipe.id}`)}
                 >
-                  <div className="grid h-14 w-14 place-items-center rounded-xl bg-[#fff4ea] text-xl">🥣</div>
+                  <div className="h-14 w-14 overflow-hidden rounded-xl border border-[#eadfce] bg-[#fff4ea]">
+                    <img
+                      src={recipe.photo.src}
+                      alt={recipe.photo.alt}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{recipe.name}</p>
                     <p className="text-sm text-[#8b8378]">{recipe.cal} kcal/cup</p>

@@ -5,6 +5,7 @@ import { useRecipes } from '../../hooks/useRecipes';
 import { useVoice } from '../../hooks/useVoice';
 import { useUnitPreference } from '../../contexts/UnitPreferenceContext';
 import { formatIngredientByPreference } from '../../utils/calculator';
+import { getRecipePhoto } from '../../utils/recipeInsights';
 import type { VoiceCommand } from '../../hooks/useVoice';
 
 function useTimer() {
@@ -73,6 +74,7 @@ export default function CookingModePage() {
   const isFirst = currentStep === 0;
   const isLast = currentStep === recipe.instructions.length - 1;
   const progress = ((currentStep + 1) / recipe.instructions.length) * 100;
+  const recipePhoto = getRecipePhoto(recipe);
 
   return (
     <div className="min-h-screen bg-[#1C1917] flex flex-col text-white">
@@ -116,6 +118,15 @@ export default function CookingModePage() {
 
       {/* Main step display */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center">
+        <div className="mb-5 w-full max-w-md overflow-hidden rounded-2xl border border-[#574738] bg-[#2A2521]">
+          <img
+            src={recipePhoto.src}
+            alt={recipePhoto.alt}
+            className="h-44 w-full object-cover sm:h-52"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
         <div className="w-16 h-16 rounded-full bg-[#F97316] flex items-center justify-center text-2xl font-bold mb-6">
           {step.stepNumber}
         </div>

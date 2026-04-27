@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { useRecipes } from '../../hooks/useRecipes';
 import { useUnitPreference } from '../../contexts/UnitPreferenceContext';
 import { formatIngredientByPreference } from '../../utils/calculator';
+import { getRecipePhoto } from '../../utils/recipeInsights';
 import type { Recipe } from '../../types/recipe';
 
 const FILTERS = ['Life Stage', 'Protein', 'Prep Time', 'Budget', 'Picky Eater', 'Batch Cook'];
@@ -62,6 +63,7 @@ export default function RecipesPage() {
       badge: recipe.isFavorite ? 'Favorite' : recipe.type === 'batch_week' ? 'Batch Friendly' : 'Fresh',
       cal: `${recipe.nutrition.caloriesPerServing} kcal/cup`,
       time: `${recipe.instructions.reduce((sum, step) => sum + (step.durationMinutes ?? 5), 0)} min`,
+      photo: getRecipePhoto(recipe),
     }));
   }, [recipes]);
 
@@ -152,7 +154,15 @@ export default function RecipesPage() {
                   className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm"
                   onClick={() => navigate(`/recipes/${item.id}`)}
                 >
-                  <div className="grid h-40 place-items-center rounded-xl bg-[#fff0de] text-4xl">🥘</div>
+                  <div className="h-40 overflow-hidden rounded-xl border border-[#eadfce] bg-[#fff0de]">
+                    <img
+                      src={item.photo.src}
+                      alt={item.photo.alt}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
                   <div className="mt-3 flex items-center justify-between">
                     <p className="font-semibold leading-tight">{item.name}</p>
                     <span className="rounded-full bg-[#fff3e4] px-2 py-0.5 text-xs font-semibold text-[#f97316]">{item.badge}</span>
@@ -193,6 +203,7 @@ export default function RecipesPage() {
                 .slice(0, 2)
                 .map(ingredient => formatIngredientByPreference(ingredient, unitPreference))
                 .join(' • ');
+              const recipePhoto = getRecipePhoto(recipe);
 
               return (
                 <article
@@ -204,7 +215,15 @@ export default function RecipesPage() {
                     onClick={() => navigate(`/recipes/${recipe.id}`)}
                     aria-label={`Open ${recipe.name}`}
                   >
-                    <div className="grid h-40 place-items-center rounded-xl bg-[#fff4ea] text-4xl">🍲</div>
+                    <div className="h-40 overflow-hidden rounded-xl border border-[#eadfce] bg-[#fff4ea]">
+                      <img
+                        src={recipePhoto.src}
+                        alt={recipePhoto.alt}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
                     <h3 className="mt-3 text-lg font-semibold leading-tight">{recipe.name}</h3>
                     <p className="mt-1 line-clamp-2 text-sm text-[#8b8378]">{recipe.description}</p>
                     {ingredientPreview && (

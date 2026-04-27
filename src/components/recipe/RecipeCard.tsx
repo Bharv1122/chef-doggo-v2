@@ -70,8 +70,8 @@ export function RecipeCard({ recipe, dogName, onToggleFavorite }: Props) {
 
   return (
     <Card hoverable onClick={() => navigate(`/recipes/${recipe.id}`)} className="overflow-hidden" padding="none">
-      <div className="relative h-40 w-full">
-        <img src={recipePhoto.src} alt={recipePhoto.alt} className="h-full w-full object-cover" loading="lazy" />
+      <div className="relative h-36 w-full sm:h-40">
+        <img src={recipePhoto.src} alt={recipePhoto.alt} className="h-full w-full object-cover" loading="lazy" decoding="async" />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-3">
           <p className="text-xs font-medium text-white/90">{recipePhoto.label}</p>
         </div>

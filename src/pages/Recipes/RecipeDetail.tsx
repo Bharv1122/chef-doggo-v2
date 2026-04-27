@@ -7,6 +7,7 @@ import { useRecipes } from '../../hooks/useRecipes';
 import { useUnitPreference } from '../../contexts/UnitPreferenceContext';
 import { getIngredientById } from '../../data/ingredients';
 import { formatIngredientByPreference } from '../../utils/calculator';
+import { getRecipePhoto } from '../../utils/recipeInsights';
 import type { Recipe, ShoppingListItem } from '../../types/recipe';
 
 function getBatchDays(recipe: Recipe): number {
@@ -142,6 +143,7 @@ export default function RecipeDetailPage() {
   const allergenSafety = recipe.allergenSafety;
   const derivedMatchedIngredients = findIngredientMatchesByTerms(recipe, allergenSafety?.checkedTerms ?? []);
   const hasAllergenWarning = allergenSafety?.allergenFree === false || derivedMatchedIngredients.length > 0;
+  const recipePhoto = getRecipePhoto(recipe);
 
   const shoppingItems = (recipe.shoppingList.length ? recipe.shoppingList : recipe.ingredients.map(ingredient => ({
     name: ingredient.name,
@@ -261,7 +263,15 @@ export default function RecipeDetailPage() {
       <section className="doggo-card overflow-hidden p-5">
         <div className="grid gap-5 xl:grid-cols-[1fr_1.2fr]">
           <div>
-            <div className="grid h-[320px] place-items-center rounded-3xl bg-[#fff0de] text-7xl">🍲</div>
+            <div className="overflow-hidden rounded-3xl border border-[#eadfce] bg-[#fff0de]">
+              <img
+                src={recipePhoto.src}
+                alt={recipePhoto.alt}
+                className="h-[320px] w-full object-cover"
+                loading="eager"
+                decoding="async"
+              />
+            </div>
             <button
               className={[
                 'mt-3 rounded-full px-4 py-1 text-sm font-semibold',

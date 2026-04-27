@@ -27,6 +27,7 @@ import {
 } from './calculator';
 import { validateIngredients, GENERAL_VET_DISCLAIMER, SUPPLEMENT_SAFETY_NOTE } from './safetyValidator';
 import { generateId } from './storage';
+import { generateRecipeImage } from './recipeImageGenerator';
 
 export interface GeneratorInput {
   dog: DogProfile;
@@ -254,7 +255,7 @@ export async function generateRecipe(input: GeneratorInput): Promise<Recipe> {
 
   const now = new Date().toISOString();
 
-  return {
+  const baseRecipe: Recipe = {
     id: generateId(),
     dogProfileId: dog.id,
     name: template.name,
@@ -281,6 +282,12 @@ export async function generateRecipe(input: GeneratorInput): Promise<Recipe> {
     transitionGuide,
     createdAt: now,
     updatedAt: now,
+  };
+
+  const imageUrl = await generateRecipeImage(baseRecipe);
+  return {
+    ...baseRecipe,
+    imageUrl,
   };
 }
 

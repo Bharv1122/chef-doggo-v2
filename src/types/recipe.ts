@@ -89,6 +89,7 @@ export interface Recipe {
   storage: StorageInfo;
   shoppingList: ShoppingListItem[];
   safetyNotes: string[];
+  imageUrl?: string;
   allergenSafety?: {
     checkedTerms: string[];
     allergenFree: boolean;

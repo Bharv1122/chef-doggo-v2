@@ -177,7 +177,7 @@ export default function PantryModePage() {
             loading={loading}
             disabled={ingredients.length === 0 || !activeProfile}
           >
-            {loading ? 'Building Recipe…' : 'Build a Recipe'}
+            {loading ? 'Building recipe & image…' : 'Build a Recipe'}
           </Button>
 
           {!activeProfile && (

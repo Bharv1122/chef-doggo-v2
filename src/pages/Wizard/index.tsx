@@ -192,7 +192,7 @@ export default function WizardPage() {
             <div className="flex gap-3">
               <Button variant="secondary" icon={<ArrowLeft size={16} />} onClick={prev}>Back</Button>
               <Button fullWidth size="lg" icon={<ChefHat size={18} />} loading={loading} onClick={handleGenerate}>
-                {loading ? 'Building your recipe…' : 'Generate My First Recipe!'}
+                {loading ? 'Building your recipe & image…' : 'Generate My First Recipe!'}
               </Button>
             </div>
           </div>
