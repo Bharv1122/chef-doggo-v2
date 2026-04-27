@@ -1,41 +1,66 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Filter, Heart, Plus } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { useRecipes } from '../../hooks/useRecipes';
+import type { Recipe } from '../../types/recipe';
 
 const FILTERS = ['Life Stage', 'Protein', 'Prep Time', 'Budget', 'Picky Eater', 'Batch Cook'];
 
-const FEATURED = [
-  { name: 'Turkey & Sweet Potato Bowl', badge: 'Popular', cal: '420 kcal/cup', time: '35 min' },
-  { name: 'Chicken & Rice Comfort', badge: 'High Rated', cal: '380 kcal/cup', time: '30 min' },
-  { name: 'Beef & Veggie Medley', badge: 'Batch Friendly', cal: '450 kcal/cup', time: '40 min' },
+type RecipeTab = 'all' | 'full_meal' | 'topper' | 'treat' | 'pantry' | 'favorites';
+
+const TABS: Array<{ key: RecipeTab; label: string }> = [
+  { key: 'all', label: 'All Recipes' },
+  { key: 'full_meal', label: 'Full Meals' },
+  { key: 'topper', label: 'Toppers' },
+  { key: 'treat', label: 'Treats' },
+  { key: 'pantry', label: 'Pantry Mode' },
+  { key: 'favorites', label: 'Favorites' },
 ];
 
-const MOCK_RECIPES = [
-  { id: 'r1', name: 'Salmon & Quinoa Power Bowl', desc: 'Omega-rich salmon with quinoa, spinach, and pumpkin.', cal: 410, time: 30, isFavorite: false },
-  { id: 'r2', name: 'Lamb & Veggie Stew', desc: 'Tender lamb with butternut squash, carrots, and green beans.', cal: 460, time: 45, isFavorite: false },
-  { id: 'r3', name: 'Chicken & Pumpkin Bowl', desc: 'Chicken, pumpkin, and oats for a cozy, fiber-rich meal.', cal: 360, time: 30, isFavorite: false },
-  { id: 'r4', name: 'White Fish & Potato Bowl', desc: 'Mild white fish with potatoes, peas, and carrots.', cal: 390, time: 35, isFavorite: false },
-  { id: 'r5', name: 'Venison & Berry Bowl', desc: 'Lean venison with blueberries and sweet potato.', cal: 430, time: 42, isFavorite: false },
-  { id: 'r6', name: 'Egg & Veggie Scramble', desc: 'Eggs with spinach, carrots, and brown rice.', cal: 340, time: 25, isFavorite: false },
-];
+function matchesTab(recipe: Recipe, tab: RecipeTab): boolean {
+  switch (tab) {
+    case 'all':
+      return true;
+    case 'favorites':
+      return recipe.isFavorite;
+    case 'full_meal':
+      return recipe.type === 'full_meal' || recipe.type === 'batch_week';
+    case 'topper':
+      return recipe.type === 'topper';
+    case 'treat':
+      return recipe.type === 'treat';
+    case 'pantry':
+      return recipe.type === 'pantry';
+    default:
+      return true;
+  }
+}
 
 export default function RecipesPage() {
   const navigate = useNavigate();
   const { recipes, toggleFavorite } = useRecipes();
+  const [activeTab, setActiveTab] = useState<RecipeTab>('all');
 
-  const cards = recipes.length
-    ? recipes.map(recipe => ({
-        id: recipe.id,
-        name: recipe.name,
-        desc: recipe.description,
-        cal: recipe.nutrition.caloriesPerServing,
-        time: recipe.instructions.reduce((sum, step) => sum + (step.durationMinutes ?? 5), 0),
-        isFavorite: recipe.isFavorite,
-      }))
-    : MOCK_RECIPES;
+  const filteredRecipes = useMemo(
+    () => recipes.filter(recipe => matchesTab(recipe, activeTab)),
+    [activeTab, recipes]
+  );
+
+  const featuredRecipes = useMemo(() => {
+    const source = [...recipes]
+      .sort((a, b) => (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt))
+      .slice(0, 3);
+
+    return source.map(recipe => ({
+      id: recipe.id,
+      name: recipe.name,
+      badge: recipe.isFavorite ? 'Favorite' : recipe.type === 'batch_week' ? 'Batch Friendly' : 'Fresh',
+      cal: `${recipe.nutrition.caloriesPerServing} kcal/cup`,
+      time: `${recipe.instructions.reduce((sum, step) => sum + (step.durationMinutes ?? 5), 0)} min`,
+    }));
+  }, [recipes]);
 
   return (
     <AppShell
@@ -54,12 +79,16 @@ export default function RecipesPage() {
           <section className="doggo-card p-5">
             <h4 className="text-[1.25rem] font-semibold">Popular This Week</h4>
             <div className="mt-3 space-y-3 text-sm">
-              {['Turkey & Sweet Potato Bowl', 'Chicken & Rice Comfort', 'Beef & Veggie Medley'].map((name, idx) => (
-                <div key={name} className="flex items-center gap-3 rounded-xl border border-[#eadfce] bg-white p-3">
+              {featuredRecipes.length > 0 ? featuredRecipes.map((item, idx) => (
+                <button
+                  key={item.id}
+                  className="flex w-full items-center gap-3 rounded-xl border border-[#eadfce] bg-white p-3 text-left hover:bg-[#fff8ef]"
+                  onClick={() => navigate(`/recipes/${item.id}`)}
+                >
                   <span className="grid h-7 w-7 place-items-center rounded-full bg-[#fff3e4] text-xs font-bold text-[#f97316]">{idx + 1}</span>
-                  <p className="font-medium leading-tight">{name}</p>
-                </div>
-              ))}
+                  <p className="font-medium leading-tight">{item.name}</p>
+                </button>
+              )) : <p className="text-sm text-[#8b8378]">Generate your first recipe to see trending picks.</p>}
             </div>
           </section>
         </>
@@ -82,15 +111,16 @@ export default function RecipesPage() {
 
       <section className="mt-4 doggo-card p-5">
         <div className="flex flex-wrap items-center gap-3 border-b border-[#eadfce] pb-4">
-          {['All Recipes', 'Full Meals', 'Toppers', 'Treats', 'Pantry Mode', 'Favorites'].map(tab => (
+          {TABS.map(tab => (
             <button
-              key={tab}
+              key={tab.key}
               className={[
                 'rounded-xl px-4 py-2 text-sm font-semibold',
-                tab === 'All Recipes' ? 'bg-[#fff0de] text-[#f97316]' : 'text-[#756b60] hover:bg-[#fff7ee]',
+                tab.key === activeTab ? 'bg-[#fff0de] text-[#f97316]' : 'text-[#756b60] hover:bg-[#fff7ee]',
               ].join(' ')}
+              onClick={() => setActiveTab(tab.key)}
             >
-              {tab}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -109,55 +139,89 @@ export default function RecipesPage() {
         <div className="mt-5 rounded-2xl border border-[#eadfce] bg-white p-4">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-[1.4rem] font-semibold">Featured Recipes</h2>
-            <button className="text-sm font-semibold text-[#f97316]">View all featured →</button>
+            <button className="text-sm font-semibold text-[#f97316]" onClick={() => setActiveTab('all')}>View all recipes →</button>
           </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            {FEATURED.map(item => (
-              <div key={item.name} className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-3">
-                <div className="grid h-40 place-items-center rounded-xl bg-[#fff0de] text-4xl">🥘</div>
-                <div className="mt-3 flex items-center justify-between">
-                  <p className="font-semibold leading-tight">{item.name}</p>
-                  <span className="rounded-full bg-[#fff3e4] px-2 py-0.5 text-xs font-semibold text-[#f97316]">{item.badge}</span>
-                </div>
-                <p className="mt-2 text-xs text-[#8b8378]">{item.cal} • {item.time}</p>
-              </div>
-            ))}
-          </div>
+          {featuredRecipes.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-3">
+              {featuredRecipes.map(item => (
+                <button
+                  key={item.id}
+                  className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm"
+                  onClick={() => navigate(`/recipes/${item.id}`)}
+                >
+                  <div className="grid h-40 place-items-center rounded-xl bg-[#fff0de] text-4xl">🥘</div>
+                  <div className="mt-3 flex items-center justify-between">
+                    <p className="font-semibold leading-tight">{item.name}</p>
+                    <span className="rounded-full bg-[#fff3e4] px-2 py-0.5 text-xs font-semibold text-[#f97316]">{item.badge}</span>
+                  </div>
+                  <p className="mt-2 text-xs text-[#8b8378]">{item.cal} • {item.time}</p>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-[#f2c8a0] bg-[#fffaf4] p-5 text-center">
+              <p className="text-sm text-[#7f7469]">No featured recipes yet. Create one to get started.</p>
+            </div>
+          )}
         </div>
       </section>
 
       <section className="mt-4 doggo-card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[1.4rem] font-semibold">All Recipes ({cards.length})</h2>
+          <h2 className="text-[1.4rem] font-semibold">{activeTab === 'favorites' ? 'Favorite Recipes' : 'Your Recipes'} ({filteredRecipes.length})</h2>
           <Button size="sm" icon={<Plus size={15} />} onClick={() => navigate('/wizard')}>Start New Recipe</Button>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {cards.map(recipe => (
-            <article key={recipe.id} className="rounded-2xl border border-[#eadfce] bg-white p-3">
-              <div className="grid h-40 place-items-center rounded-xl bg-[#fff4ea] text-4xl">🍲</div>
-              <h3 className="mt-3 text-lg font-semibold leading-tight">{recipe.name}</h3>
-              <p className="mt-1 line-clamp-2 text-sm text-[#8b8378]">{recipe.desc}</p>
-              <div className="mt-2 flex items-center justify-between text-sm text-[#7d7268]">
-                <span>{recipe.cal} kcal/cup</span>
-                <span>{recipe.time} min</span>
-              </div>
-              <div className="mt-3 flex gap-2">
-                <Button size="sm" className="flex-1" onClick={() => navigate(`/recipes/${recipe.id}`)}>View Recipe</Button>
-                <button
-                  className={[
-                    'grid h-10 w-10 place-items-center rounded-xl border border-[#eadfce] transition-colors',
-                    recipe.isFavorite ? 'text-[#f97316] bg-[#fff4ea]' : 'text-[#c5b8a8] hover:text-[#f97316]',
-                  ].join(' ')}
-                  onClick={() => void toggleFavorite(recipe.id)}
-                  aria-label="Toggle recipe favorite"
+        {filteredRecipes.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#f2c8a0] bg-[#fffaf4] p-6 text-center">
+            <h3 className="text-lg font-semibold text-[#2b2118]">No recipes in this category yet</h3>
+            <p className="mt-1 text-sm text-[#8b8378]">
+              {activeTab === 'favorites'
+                ? 'Favorite a recipe from its card or detail page to see it here.'
+                : 'Create your first recipe and it will appear here.'}
+            </p>
+            <Button size="sm" className="mt-3" onClick={() => navigate('/wizard')}>Create Recipe</Button>
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {filteredRecipes.map(recipe => {
+              const totalMinutes = recipe.instructions.reduce((sum, step) => sum + (step.durationMinutes ?? 5), 0);
+              return (
+                <article
+                  key={recipe.id}
+                  className="rounded-2xl border border-[#eadfce] bg-white p-3 transition hover:-translate-y-0.5 hover:shadow-sm"
                 >
-                  <Heart size={16} fill={recipe.isFavorite ? 'currentColor' : 'none'} />
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
+                  <button
+                    className="w-full text-left"
+                    onClick={() => navigate(`/recipes/${recipe.id}`)}
+                    aria-label={`Open ${recipe.name}`}
+                  >
+                    <div className="grid h-40 place-items-center rounded-xl bg-[#fff4ea] text-4xl">🍲</div>
+                    <h3 className="mt-3 text-lg font-semibold leading-tight">{recipe.name}</h3>
+                    <p className="mt-1 line-clamp-2 text-sm text-[#8b8378]">{recipe.description}</p>
+                  </button>
+                  <div className="mt-2 flex items-center justify-between text-sm text-[#7d7268]">
+                    <span>{recipe.nutrition.caloriesPerServing} kcal/cup</span>
+                    <span>{totalMinutes} min</span>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button size="sm" className="flex-1" onClick={() => navigate(`/recipes/${recipe.id}`)}>View Recipe</Button>
+                    <button
+                      className={[
+                        'grid h-10 w-10 place-items-center rounded-xl border border-[#eadfce] transition-colors',
+                        recipe.isFavorite ? 'text-[#f97316] bg-[#fff4ea]' : 'text-[#c5b8a8] hover:text-[#f97316]',
+                      ].join(' ')}
+                      onClick={() => void toggleFavorite(recipe.id)}
+                      aria-label="Toggle recipe favorite"
+                    >
+                      <Heart size={16} fill={recipe.isFavorite ? 'currentColor' : 'none'} />
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
     </AppShell>
   );

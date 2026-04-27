@@ -15,6 +15,7 @@ import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { useDogProfiles } from '../../hooks/useDogProfiles';
 import { useRecipes } from '../../hooks/useRecipes';
+import { useAuth } from '../../contexts/AuthContext';
 
 const QUICK_ACTIONS = [
   { label: 'Full Meals', desc: 'Create complete balanced homemade recipes', icon: <ChefHat size={18} />, to: '/bowl-builder', color: 'bg-[#fff0de] text-[#f97316]' },
@@ -25,23 +26,16 @@ const QUICK_ACTIONS = [
   { label: 'Ask Chef', desc: 'Get AI-powered answers for your questions', icon: <MessageCircle size={18} />, to: '/assistant', color: 'bg-[#e9f8f5] text-[#1f9f84]' },
 ];
 
-const FALLBACK_RECIPES = [
-  { name: 'Turkey & Sweet Potato Bowl', date: 'Apr 24, 2025', cal: 420 },
-  { name: 'Chicken & Rice Comfort', date: 'Apr 22, 2025', cal: 380 },
-  { name: 'Beef & Veggie Medley', date: 'Apr 20, 2025', cal: 450 },
-];
-
-const FALLBACK_DOGS = [
-  { id: '1', name: 'Buddy', breed: 'Golden Retriever', ageYears: 4, weightLbs: 28 },
-  { id: '2', name: 'Luna', breed: 'Pembroke Welsh Corgi', ageYears: 2, weightLbs: 20 },
-];
-
 export default function HomePage() {
   const navigate = useNavigate();
-  const { profiles, activeProfile } = useDogProfiles();
+  const { profiles } = useDogProfiles();
   const { recipes } = useRecipes();
+  const { user } = useAuth();
+
+  const userName = user?.email?.split('@')[0] ?? 'there';
 
   const recentRecipes = recipes.slice(-3).reverse().map(recipe => ({
+    id: recipe.id,
     name: recipe.name,
     date: new Date(recipe.createdAt).toLocaleDateString(),
     cal: recipe.nutrition.caloriesPerServing,
@@ -84,7 +78,7 @@ export default function HomePage() {
       <section className="doggo-soft-card overflow-hidden p-7">
         <div className="grid items-center gap-6 lg:grid-cols-[1fr_320px]">
           <div>
-            <h1 className="doggo-section-title">Welcome back, {activeProfile?.name ?? 'Sarah'}! 👋</h1>
+            <h1 className="doggo-section-title">Welcome back, {userName}! 👋</h1>
             <p className="mt-2 text-[1.2rem] text-[#7f7469]">Let's make something amazing for your pup today.</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl bg-white/75 p-3">
@@ -153,18 +147,30 @@ export default function HomePage() {
             <h3 className="text-[1.3rem] font-semibold">Recent Recipes</h3>
             <button onClick={() => navigate('/recipes')} className="text-sm font-semibold text-[#f97316]">View all</button>
           </div>
-          <div className="mt-4 space-y-3">
-            {(recentRecipes.length ? recentRecipes : FALLBACK_RECIPES).map(recipe => (
-              <div key={recipe.name} className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-white p-3">
-                <div className="grid h-14 w-14 place-items-center rounded-xl bg-[#fff4ea] text-xl">🥣</div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{recipe.name}</p>
-                  <p className="text-sm text-[#8b8378]">{recipe.cal} kcal/cup</p>
-                </div>
-                <p className="text-xs text-[#9a9186]">{recipe.date}</p>
-              </div>
-            ))}
-          </div>
+          {recentRecipes.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-[#f2c8a0] bg-[#fffaf4] p-5 text-center">
+              <p className="font-semibold text-[#2b2118]">No recipes yet</p>
+              <p className="mt-1 text-sm text-[#8b8378]">Start your first bowl and your saved recipes will appear here.</p>
+              <Button size="sm" className="mt-3" onClick={() => navigate('/wizard')}>Create Recipe</Button>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {recentRecipes.map(recipe => (
+                <button
+                  key={recipe.id}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-[#eadfce] bg-white p-3 text-left hover:bg-[#fff8ef]"
+                  onClick={() => navigate(`/recipes/${recipe.id}`)}
+                >
+                  <div className="grid h-14 w-14 place-items-center rounded-xl bg-[#fff4ea] text-xl">🥣</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold">{recipe.name}</p>
+                    <p className="text-sm text-[#8b8378]">{recipe.cal} kcal/cup</p>
+                  </div>
+                  <p className="text-xs text-[#9a9186]">{recipe.date}</p>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="doggo-card p-5">
@@ -172,19 +178,27 @@ export default function HomePage() {
             <h3 className="text-[1.3rem] font-semibold">My Dogs</h3>
             <button onClick={() => navigate('/profiles')} className="text-sm font-semibold text-[#f97316]">View all</button>
           </div>
-          <div className="mt-4 space-y-3">
-            {(profiles.length ? profiles : FALLBACK_DOGS).map(dog => (
-              <div key={dog.id} className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-white p-3">
-                <img src="/chef-doggo-logo.webp" alt={dog.name} className="h-14 w-14 rounded-full border border-[#eadfce] object-cover" />
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold">{dog.name}</p>
-                  <p className="text-sm text-[#8b8378]">{dog.breed} · {dog.ageYears} yrs</p>
+          {profiles.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-[#f2c8a0] bg-[#fffaf4] p-5 text-center">
+              <p className="font-semibold text-[#2b2118]">No dog profiles yet</p>
+              <p className="mt-1 text-sm text-[#8b8378]">Add your first pup to personalize meals and portions.</p>
+              <Button size="sm" className="mt-3" onClick={() => navigate('/profiles/new')}>Add Dog Profile</Button>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {profiles.map(dog => (
+                <div key={dog.id} className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-white p-3">
+                  <img src="/chef-doggo-logo.webp" alt={dog.name} className="h-14 w-14 rounded-full border border-[#eadfce] object-cover" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{dog.name}</p>
+                    <p className="text-sm text-[#8b8378]">{dog.breed} · {dog.ageYears > 0 ? `${dog.ageYears} yrs` : `${dog.ageMonths} mo`}</p>
+                  </div>
+                  <span className="rounded-xl bg-[#f9f1e6] px-3 py-1 text-xs font-semibold text-[#7f7469]">{dog.weightLbs} lbs</span>
                 </div>
-                <span className="rounded-xl bg-[#f9f1e6] px-3 py-1 text-xs font-semibold text-[#7f7469]">{dog.weightLbs} lbs</span>
-              </div>
-            ))}
-            <button onClick={() => navigate('/profiles/new')} className="w-full rounded-2xl border border-dashed border-[#f2c8a0] py-3 text-sm font-semibold text-[#f97316]">+ Add Another Dog</button>
-          </div>
+              ))}
+              <button onClick={() => navigate('/profiles/new')} className="w-full rounded-2xl border border-dashed border-[#f2c8a0] py-3 text-sm font-semibold text-[#f97316]">+ Add Another Dog</button>
+            </div>
+          )}
         </div>
       </section>
 

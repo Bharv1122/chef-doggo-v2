@@ -84,6 +84,9 @@ export async function generateRecipe(input: GeneratorInput): Promise<Recipe> {
   // 5. Build cooking steps
   const instructions = buildInstructions(template, recipeType);
 
+  // 5b. Estimate nutrition from actual ingredient composition
+  const estimatedNutrition = estimateNutrition(ingredients, recipeType, serving, batch, treatDailyCalorieCap);
+
   // 6. Build supplement list (full meals only)
   const supplements: SupplementItem[] = recipeType === 'full_meal' || recipeType === 'batch_week'
     ? buildSupplements(dog)
@@ -111,15 +114,7 @@ export async function generateRecipe(input: GeneratorInput): Promise<Recipe> {
     type: recipeType,
     ingredients,
     instructions,
-    nutrition: {
-      caloriesPerServing: recipeType === 'treat'
-        ? Math.round(treatDailyCalorieCap / serving.mealsPerDay)
-        : Math.round(serving.gramsPerMeal * 1.1),
-      caloriesPerDay: recipeType === 'treat'
-        ? treatDailyCalorieCap
-        : Math.round(serving.totalDailyGrams * 1.1),
-      isEstimate: true,
-    },
+    nutrition: estimatedNutrition,
     serving,
     batch,
     supplements,
@@ -132,6 +127,40 @@ export async function generateRecipe(input: GeneratorInput): Promise<Recipe> {
     transitionGuide,
     createdAt: now,
     updatedAt: now,
+  };
+}
+
+function estimateNutrition(
+  ingredients: RecipeIngredient[],
+  recipeType: RecipeType,
+  serving: { mealsPerDay: number },
+  batch: { numberOfMeals: number },
+  treatDailyCalorieCap: number
+) {
+  const totalCalories = ingredients.reduce((sum, ingredient) => {
+    const source = getIngredientById(ingredient.ingredientId);
+    if (!source) return sum;
+    return sum + source.caloriesPerGram * ingredient.amountGrams;
+  }, 0);
+
+  if (recipeType === 'treat') {
+    return {
+      caloriesPerServing: Math.max(1, Math.round(treatDailyCalorieCap / serving.mealsPerDay)),
+      caloriesPerDay: treatDailyCalorieCap,
+      isEstimate: true as const,
+    };
+  }
+
+  const servings = recipeType === 'full_meal' || recipeType === 'batch_week'
+    ? Math.max(1, batch.numberOfMeals)
+    : Math.max(1, serving.mealsPerDay);
+
+  const caloriesPerServing = Math.max(1, Math.round(totalCalories / servings));
+
+  return {
+    caloriesPerServing,
+    caloriesPerDay: Math.max(1, Math.round(caloriesPerServing * serving.mealsPerDay)),
+    isEstimate: true as const,
   };
 }
 
@@ -180,9 +209,15 @@ function pickTemplate(input: GeneratorInput): RecipeTemplate {
 }
 
 // ── Ingredient builder ────────────────────────────────────────────────────────
-function fishOilSupplementGrams(weightLbs: number): number {
-  const estimate = weightLbs * 0.05; // 1g fish oil per ~20 lbs as a conservative estimate
+function baseFishOilDailyGrams(weightLbs: number): number {
+  const estimate = weightLbs * 0.05; // ~1g fish oil per 20 lbs body weight
   return Math.round(Math.min(3, Math.max(0.5, estimate)) * 10) / 10;
+}
+
+function scaledFishOilGrams(weightLbs: number, totalGrams: number): number {
+  const dailyAmount = baseFishOilDailyGrams(weightLbs);
+  const ingredientScaledAmount = Math.max(dailyAmount, totalGrams * 0.005);
+  return Math.round(ingredientScaledAmount * 10) / 10;
 }
 
 function buildIngredients(
@@ -205,7 +240,7 @@ function buildIngredients(
       if (!ing) continue;
 
       const isFishOilSupplement = id === 'fish_oil';
-      const amountGrams = isFishOilSupplement ? fishOilSupplementGrams(dog.weightLbs) : gramsEach;
+      const amountGrams = isFishOilSupplement ? scaledFishOilGrams(dog.weightLbs, totalGrams) : gramsEach;
       const amountCups = isFishOilSupplement ? undefined : gramsToCups(amountGrams);
       const amountOz = gramsToOz(amountGrams);
 
