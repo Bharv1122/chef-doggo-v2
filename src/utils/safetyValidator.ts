@@ -27,13 +27,16 @@ export function validateIngredients(
     }
   }
 
-  // 3. Avoid-foods check
-  if (dog?.avoidFoods?.length) {
-    for (const avoid of dog.avoidFoods) {
+  // 3. Avoid-foods check (strict safety block)
+  const dogWithAliases = dog as DogProfile & { foodsToAvoid?: string[] };
+  const avoidFoods = [...(dog?.avoidFoods ?? []), ...(dogWithAliases?.foodsToAvoid ?? [])];
+
+  if (avoidFoods.length) {
+    for (const avoid of avoidFoods) {
       const avoidLower = avoid.toLowerCase();
       const found = ingredientNames.some(name => name.toLowerCase().includes(avoidLower));
       if (found) {
-        warnings.push(`"${avoid}" is on ${dog.name}'s avoid list. Consider swapping this ingredient.`);
+        errors.push(`"${avoid}" is on ${dog?.name ?? 'this dog'}'s foods-to-avoid list. Remove this ingredient before proceeding.`);
       }
     }
   }

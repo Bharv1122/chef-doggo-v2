@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Heart, Play, ShoppingBag, Timer } from 'lucide-react';
+import { Heart, Play, ShoppingBag, Timer, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { useRecipes } from '../../hooks/useRecipes';
@@ -88,6 +88,27 @@ function formatShoppingItem(item: ShoppingListItem, fallback: string, useMetric:
   return item.displayAmountVolume ?? item.displayAmount ?? fallback;
 }
 
+function normalizeFoodTerm(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function findIngredientMatchesByTerms(recipe: Recipe, checkedTerms: string[]): string[] {
+  if (!checkedTerms.length) return [];
+
+  const matches = recipe.ingredients
+    .filter(ingredient => {
+      const ingredientName = normalizeFoodTerm(ingredient.name);
+      return checkedTerms.some(term => ingredientName.includes(normalizeFoodTerm(term)));
+    })
+    .map(ingredient => ingredient.name);
+
+  return Array.from(new Set(matches));
+}
+
 export default function RecipeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -118,6 +139,9 @@ export default function RecipeDetailPage() {
   const ingredients = recipe.ingredients.map(ingredient => formatIngredientByPreference(ingredient, unitPreference));
   const instructions = recipe.instructions.map(step => step.instruction);
   const ingredientByName = new Map(recipe.ingredients.map(item => [item.name, item]));
+  const allergenSafety = recipe.allergenSafety;
+  const derivedMatchedIngredients = findIngredientMatchesByTerms(recipe, allergenSafety?.checkedTerms ?? []);
+  const hasAllergenWarning = allergenSafety?.allergenFree === false || derivedMatchedIngredients.length > 0;
 
   const shoppingItems = (recipe.shoppingList.length ? recipe.shoppingList : recipe.ingredients.map(ingredient => ({
     name: ingredient.name,
@@ -198,6 +222,41 @@ export default function RecipeDetailPage() {
       }
     >
       <button onClick={() => navigate('/recipes')} className="mb-3 text-sm font-semibold text-[#7e7369]">← Back to Recipes</button>
+
+      {hasAllergenWarning && (
+        <section className="mb-4 rounded-2xl border-2 border-red-300 bg-red-50 p-4">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="mt-0.5 text-red-600" size={20} />
+            <div>
+              <h2 className="text-base font-semibold text-red-800">Allergen Warning — Do Not Feed Yet</h2>
+              <p className="mt-1 text-sm text-red-700">
+                {allergenSafety?.warning ?? 'This recipe may contain ingredients listed in this dog\'s allergies or foods-to-avoid profile.'}
+              </p>
+              {!!(allergenSafety?.matchedIngredients?.length || derivedMatchedIngredients.length) && (
+                <p className="mt-2 text-xs font-medium text-red-700">
+                  Matched ingredients: {[...(allergenSafety?.matchedIngredients ?? []), ...derivedMatchedIngredients]
+                    .filter((item, index, arr) => arr.indexOf(item) === index)
+                    .join(', ')}
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {allergenSafety?.allergenFree && (
+        <section className="mb-4 rounded-2xl border border-green-200 bg-green-50 p-3">
+          <p className="flex items-center gap-2 text-sm font-semibold text-green-800">
+            <ShieldCheck size={16} />
+            Allergen-checked for this dog
+          </p>
+          {allergenSafety.checkedTerms.length > 0 && (
+            <p className="mt-1 text-xs text-green-700">
+              Checked against: {allergenSafety.checkedTerms.join(', ')}
+            </p>
+          )}
+        </section>
+      )}
 
       <section className="doggo-card overflow-hidden p-5">
         <div className="grid gap-5 xl:grid-cols-[1fr_1.2fr]">

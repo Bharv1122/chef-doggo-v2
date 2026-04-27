@@ -38,9 +38,125 @@ export interface GeneratorInput {
   forceTemplateId?: string;
 }
 
+interface RestrictionMatch {
+  restrictedTerm: string;
+  ingredientName: string;
+}
+
+function normalizeFoodTerm(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getDogAvoidFoods(dog: DogProfile): string[] {
+  const dogWithAliases = dog as DogProfile & { foodsToAvoid?: string[] };
+  return [...(dog.avoidFoods ?? []), ...(dogWithAliases.foodsToAvoid ?? [])];
+}
+
+function getDogRestrictedTerms(dog: DogProfile): string[] {
+  const normalized = [...(dog.allergies ?? []), ...getDogAvoidFoods(dog)]
+    .map(normalizeFoodTerm)
+    .filter(Boolean);
+  return Array.from(new Set(normalized));
+}
+
+function findRestrictionMatchesForIngredient(
+  ingredientName: string,
+  ingredientAliases: string[],
+  restrictedTerms: string[]
+): RestrictionMatch[] {
+  if (!restrictedTerms.length) return [];
+
+  const searchableValues = [ingredientName, ...ingredientAliases]
+    .map(normalizeFoodTerm)
+    .filter(Boolean);
+
+  const matches = new Map<string, RestrictionMatch>();
+
+  for (const restrictedTerm of restrictedTerms) {
+    const found = searchableValues.some(value => value.includes(restrictedTerm));
+    if (found) {
+      matches.set(`${restrictedTerm}::${ingredientName}`, {
+        restrictedTerm,
+        ingredientName,
+      });
+    }
+  }
+
+  return Array.from(matches.values());
+}
+
+function findTemplateRestrictionMatches(template: RecipeTemplate, restrictedTerms: string[]): RestrictionMatch[] {
+  if (!restrictedTerms.length) return [];
+
+  const ingredientIds = [
+    ...template.proteinIds,
+    ...template.carbIds,
+    ...template.vegetableIds,
+    ...template.fatIds,
+    ...template.supplementIds,
+  ];
+
+  const matches: RestrictionMatch[] = [];
+
+  for (const ingredientId of ingredientIds) {
+    const ingredient = getIngredientById(ingredientId);
+    if (!ingredient) continue;
+
+    matches.push(
+      ...findRestrictionMatchesForIngredient(
+        ingredient.name,
+        ingredient.aliases ?? [],
+        restrictedTerms
+      )
+    );
+  }
+
+  return matches;
+}
+
+function buildRestrictionSummary(matches: RestrictionMatch[]): string {
+  return matches
+    .map(match => `"${match.ingredientName}" matched "${match.restrictedTerm}"`)
+    .join(', ');
+}
+
+function validateRecipeAgainstDogRestrictions(
+  ingredients: RecipeIngredient[],
+  dog: DogProfile
+): { isSafe: boolean; matches: RestrictionMatch[] } {
+  const restrictedTerms = getDogRestrictedTerms(dog);
+  const matches = ingredients.flatMap(ingredient => {
+    const source = getIngredientById(ingredient.ingredientId);
+    return findRestrictionMatchesForIngredient(
+      ingredient.name,
+      source?.aliases ?? [],
+      restrictedTerms
+    );
+  });
+
+  return {
+    isSafe: matches.length === 0,
+    matches,
+  };
+}
+
 // REPLACE THIS FUNCTION BODY with a real API call when ready.
 export async function generateRecipe(input: GeneratorInput): Promise<Recipe> {
-  const { dog, recipeType, batchDuration = '7day', budgetMode = false } = input;
+  const { dog, recipeType, batchDuration = '7day' } = input;
+
+  const restrictedTerms = getDogRestrictedTerms(dog);
+  console.info('[RecipeSafety] Generating recipe with restrictions:', {
+    dogId: dog.id,
+    dogName: dog.name,
+    recipeType,
+    restrictedTerms,
+    allergies: dog.allergies,
+    avoidFoods: getDogAvoidFoods(dog),
+  });
 
   // 1. Pick template
   const template = pickTemplate(input);
@@ -51,12 +167,18 @@ export async function generateRecipe(input: GeneratorInput): Promise<Recipe> {
     ...template.carbIds,
     ...template.vegetableIds,
     ...template.fatIds,
+    ...template.supplementIds,
   ]
     .map(id => getIngredientById(id)?.name ?? id)
     .filter(Boolean);
 
   const safety = validateIngredients(ingredientNames, dog);
   if (!safety.safe) {
+    console.error('[RecipeSafety] Template-level safety validation failed', {
+      templateId: template.id,
+      templateName: template.name,
+      errors: safety.errors,
+    });
     throw new Error(`Safety check failed: ${safety.errors.join('; ')}`);
   }
 
@@ -88,6 +210,24 @@ export async function generateRecipe(input: GeneratorInput): Promise<Recipe> {
 
   // 4. Build ingredient list
   const ingredients = buildIngredients(template, split, recipeType, dog);
+
+  // 4b. Final strict validation before recipe can be shown/saved
+  const strictAllergenValidation = validateRecipeAgainstDogRestrictions(ingredients, dog);
+  if (!strictAllergenValidation.isSafe) {
+    const summary = buildRestrictionSummary(strictAllergenValidation.matches);
+    console.error('[RecipeSafety] Final recipe validation failed', {
+      templateId: template.id,
+      templateName: template.name,
+      matches: strictAllergenValidation.matches,
+    });
+    throw new Error(`Safety check failed: restricted ingredients detected in generated recipe (${summary}).`);
+  }
+
+  console.info('[RecipeSafety] Final recipe passed strict allergen validation', {
+    templateId: template.id,
+    templateName: template.name,
+    restrictedTerms,
+  });
 
   // 5. Build cooking steps
   const instructions = buildInstructions(template, recipeType);
@@ -129,6 +269,12 @@ export async function generateRecipe(input: GeneratorInput): Promise<Recipe> {
     storage,
     shoppingList,
     safetyNotes,
+    allergenSafety: {
+      checkedTerms: restrictedTerms,
+      allergenFree: true,
+      warning: undefined,
+      matchedIngredients: [],
+    },
     vetDisclaimer: GENERAL_VET_DISCLAIMER,
     isFavorite: false,
     scaleFactor: 1,
@@ -183,9 +329,28 @@ function pickTemplate(input: GeneratorInput): RecipeTemplate {
     recipeType === 'treat' ? TREAT_TEMPLATES :
     TOPPER_TEMPLATES;
 
+  const restrictedTerms = getDogRestrictedTerms(dog);
+
   if (forceTemplateId) {
     const found = pool.find(t => t.id === forceTemplateId);
-    if (found) return found;
+    if (found) {
+      const forcedMatches = findTemplateRestrictionMatches(found, restrictedTerms);
+      if (forcedMatches.length) {
+        const summary = buildRestrictionSummary(forcedMatches);
+        console.error('[RecipeSafety] Forced template blocked by restrictions', {
+          templateId: found.id,
+          templateName: found.name,
+          restrictedTerms,
+          matches: forcedMatches,
+        });
+        throw new Error(`Selected recipe conflicts with your dog's restricted foods: ${summary}.`);
+      }
+      console.info('[RecipeSafety] Using explicitly requested safe template', {
+        templateId: found.id,
+        templateName: found.name,
+      });
+      return found;
+    }
   }
 
   // Filter by budget
@@ -200,20 +365,33 @@ function pickTemplate(input: GeneratorInput): RecipeTemplate {
     if (proteinMatch.length) candidates = proteinMatch;
   }
 
-  // Filter out templates with allergenic ingredients
-  if (dog.allergies.length) {
-    const allergyLower = dog.allergies.map(a => a.toLowerCase());
-    candidates = candidates.filter(t => {
-      const allIds = [...t.proteinIds, ...t.carbIds, ...t.vegetableIds, ...t.fatIds];
-      return !allIds.some(id => {
-        const ing = getIngredientById(id);
-        return ing && allergyLower.some(a => ing.name.toLowerCase().includes(a));
-      });
-    });
-    if (!candidates.length) candidates = [...pool];
+  const excludedReasons = new Map<string, RestrictionMatch[]>();
+  const safeCandidates = candidates.filter(template => {
+    const matches = findTemplateRestrictionMatches(template, restrictedTerms);
+    if (matches.length) {
+      excludedReasons.set(template.id, matches);
+      return false;
+    }
+    return true;
+  });
+
+  if (excludedReasons.size > 0) {
+    console.info(
+      '[RecipeSafety] Filtered templates due to dog allergies/avoid foods:',
+      Array.from(excludedReasons.entries()).map(([templateId, matches]) => ({
+        templateId,
+        reason: buildRestrictionSummary(matches),
+      }))
+    );
   }
 
-  return candidates[Math.floor(Math.random() * candidates.length)];
+  if (!safeCandidates.length) {
+    throw new Error(
+      `No safe ${recipeType.replace('_', ' ')} recipe templates available for ${dog.name}'s restrictions: ${restrictedTerms.join(', ') || 'none provided'}.`
+    );
+  }
+
+  return safeCandidates[Math.floor(Math.random() * safeCandidates.length)];
 }
 
 // ── Ingredient builder ────────────────────────────────────────────────────────
@@ -530,8 +708,12 @@ function buildSafetyNotes(
   existingWarnings: string[]
 ): string[] {
   const notes = [...existingWarnings];
+  const restrictedTerms = getDogRestrictedTerms(dog);
 
   notes.push('All ingredients have been checked against the common toxic foods list for dogs.');
+  if (restrictedTerms.length) {
+    notes.push(`Allergen profile check passed for: ${restrictedTerms.join(', ')}.`);
+  }
 
   if (recipeType === 'full_meal' || recipeType === 'batch_week') {
     notes.push('Homemade dog food usually needs supplementation to be nutritionally complete. See the supplement checklist below.');
