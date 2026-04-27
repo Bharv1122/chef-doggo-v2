@@ -1,5 +1,11 @@
 import type { DogProfile } from '../types/dog';
-import type { ServingInfo, BatchInfo, BatchDuration } from '../types/recipe';
+import type {
+  ServingInfo,
+  BatchInfo,
+  BatchDuration,
+  RecipeIngredient,
+  UnitPreference,
+} from '../types/recipe';
 
 // ── RER / DER ─────────────────────────────────────────────────────────────────
 // All results are ESTIMATES. Label them clearly in the UI.
@@ -108,6 +114,10 @@ export function splitIngredients(totalGrams: number): IngredientAmounts {
 }
 
 // ── Unit helpers ───────────────────────────────────────────────────────────────
+const ML_PER_CUP = 240;
+const TBSP_PER_CUP = 16;
+const TSP_PER_CUP = 48;
+
 export function gramsToOz(grams: number): number {
   if (!Number.isFinite(grams) || grams <= 0) return 0;
 
@@ -123,7 +133,106 @@ export function gramsToLbs(grams: number): number {
   return Math.round((grams / 453.592) * 10) / 10;
 }
 
-// Grocery-friendly label (e.g. 453g → "about 1 lb")
+// Rough cups conversion (varies by ingredient density)
+export function gramsToCups(grams: number): number {
+  return Math.round((grams / ML_PER_CUP) * 4) / 4; // round to nearest ¼ cup
+}
+
+export function cupsToMl(cups: number): number {
+  if (!Number.isFinite(cups) || cups <= 0) return 0;
+  return Math.max(1, Math.round(cups * ML_PER_CUP));
+}
+
+function roundToQuarter(value: number): number {
+  return Math.round(value * 4) / 4;
+}
+
+function formatFractional(value: number, unit: string): string {
+  const rounded = roundToQuarter(value);
+  const whole = Math.floor(rounded);
+  const fraction = Number((rounded - whole).toFixed(2));
+
+  const fractionMap: Record<number, string> = {
+    0.25: '¼',
+    0.5: '½',
+    0.75: '¾',
+  };
+
+  const suffix = rounded === 1 ? unit : `${unit}s`;
+
+  if (!whole && fractionMap[fraction]) return `${fractionMap[fraction]} ${suffix}`;
+  if (!fraction) return `${whole} ${suffix}`;
+
+  return `${whole} ${fractionMap[fraction] ?? fraction.toString()} ${suffix}`;
+}
+
+export function formatVolumeAmountFromCups(cups: number): string {
+  if (!Number.isFinite(cups) || cups <= 0) return 'a small amount';
+
+  if (cups >= 0.25) {
+    return formatFractional(cups, 'cup');
+  }
+
+  const tablespoons = cups * TBSP_PER_CUP;
+  if (tablespoons >= 0.5) {
+    return formatFractional(tablespoons, 'tbsp');
+  }
+
+  const teaspoons = Math.max(0.25, roundToQuarter(cups * TSP_PER_CUP));
+  return formatFractional(teaspoons, 'tsp');
+}
+
+export function formatImperialWeight(grams: number): string {
+  const lbs = grams / 453.592;
+  const oz = grams / 28.35;
+
+  if (lbs >= 1.8) return `${Math.round(lbs)} lbs`;
+  if (lbs >= 0.9) return '1 lb';
+  if (lbs >= 0.4) return '½ lb';
+  if (oz >= 1) return `${Math.round(oz)} oz`;
+  return `${Math.max(1, Math.round(grams))} g`;
+}
+
+function looksLikeLiquid(ingredient: Pick<RecipeIngredient, 'name' | 'category'>): boolean {
+  const label = ingredient.name.toLowerCase();
+  return ingredient.category === 'fat' || ingredient.category === 'supplement' || label.includes('oil') || label.includes('water');
+}
+
+export function formatMetricIngredient(ingredient: Pick<RecipeIngredient, 'name' | 'amountGrams' | 'amountCups' | 'amountMl' | 'category'>): string {
+  const fallbackMl = ingredient.amountCups ? cupsToMl(ingredient.amountCups) : 0;
+  const ml = ingredient.amountMl ?? fallbackMl;
+
+  if (looksLikeLiquid(ingredient) && ml > 0) {
+    return `${ml}ml ${ingredient.name}`;
+  }
+
+  return `${Math.max(1, Math.round(ingredient.amountGrams))}g ${ingredient.name}`;
+}
+
+export function formatVolumeIngredient(ingredient: Pick<RecipeIngredient, 'name' | 'amountGrams' | 'amountCups' | 'category'>): string {
+  const cups = ingredient.amountCups ?? gramsToCups(ingredient.amountGrams);
+  const volume = formatVolumeAmountFromCups(cups);
+
+  if (ingredient.category === 'protein' || ingredient.category === 'supplement') {
+    const weight = formatImperialWeight(ingredient.amountGrams);
+    return `${weight} ${ingredient.name} (about ${volume})`;
+  }
+
+  return `${volume} ${ingredient.name}`;
+}
+
+export function formatIngredientByPreference(
+  ingredient: Pick<RecipeIngredient, 'name' | 'amountGrams' | 'amountCups' | 'amountMl' | 'category' | 'displayMetric' | 'displayVolume'>,
+  unitPreference: UnitPreference
+): string {
+  if (unitPreference === 'metric') {
+    return ingredient.displayMetric ?? formatMetricIngredient(ingredient);
+  }
+
+  return ingredient.displayVolume ?? formatVolumeIngredient(ingredient);
+}
+
+// Grocery-friendly legacy label (kept for backward compatibility)
 export function groceryLabel(grams: number, ingredientName: string): string {
   const lbs = grams / 453.592;
   const oz = grams / 28.35;
@@ -133,9 +242,4 @@ export function groceryLabel(grams: number, ingredientName: string): string {
   if (lbs >= 0.4) return `about ½ lb ${ingredientName}`;
   if (oz >= 10) return `about ${Math.round(oz)} oz ${ingredientName}`;
   return `about ${Math.round(grams)}g ${ingredientName}`;
-}
-
-// Rough cups conversion (varies by ingredient density)
-export function gramsToCups(grams: number): number {
-  return Math.round((grams / 240) * 4) / 4; // round to nearest ¼ cup
 }

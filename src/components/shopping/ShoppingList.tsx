@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { CheckSquare, Square, Copy, Printer, Download, Check } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { useUnitPreference } from '../../contexts/UnitPreferenceContext';
 import type { ShoppingListItem } from '../../types/recipe';
 
 interface Props {
@@ -27,15 +28,29 @@ function escapeHtml(input: string): string {
     .replaceAll("'", '&#39;');
 }
 
+function getDisplayAmount(item: ShoppingListItem, unitPreference: 'metric' | 'us_volume'): string {
+  if (unitPreference === 'metric') {
+    return item.displayAmountMetric ?? item.displayAmount;
+  }
+
+  return item.displayAmountVolume ?? item.displayAmount;
+}
+
 export function ShoppingList({ items, recipeName }: Props) {
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
   const [downloaded, setDownloaded] = useState(false);
+  const { unitPreference } = useUnitPreference();
+
+  const preparedItems = useMemo(
+    () => items.map(item => ({ ...item, displayAmount: getDisplayAmount(item, unitPreference) })),
+    [items, unitPreference]
+  );
 
   const dedupedItems = useMemo(() => {
     const byKey = new Map<string, ShoppingListItem>();
 
-    for (const item of items) {
+    for (const item of preparedItems) {
       const key = `${item.category}::${item.name.trim().toLowerCase()}::${item.displayAmount.trim().toLowerCase()}`;
       const existing = byKey.get(key);
 
@@ -50,7 +65,7 @@ export function ShoppingList({ items, recipeName }: Props) {
     }
 
     return Array.from(byKey.values());
-  }, [items]);
+  }, [preparedItems]);
 
   const grouped = useMemo(() => {
     return CATEGORY_ORDER.reduce<Record<string, Array<{ item: ShoppingListItem; index: number }>>>((acc, category) => {

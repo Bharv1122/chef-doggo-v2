@@ -14,8 +14,16 @@ import {
 import { getIngredientById } from '../data/ingredients';
 import { getAllSupplements } from '../data/supplements';
 import {
-  calcServing, calcBatch, splitIngredients, calcDER,
-  gramsToOz, gramsToCups, groceryLabel,
+  calcServing,
+  calcBatch,
+  splitIngredients,
+  calcDER,
+  gramsToOz,
+  gramsToCups,
+  groceryLabel,
+  cupsToMl,
+  formatMetricIngredient,
+  formatVolumeIngredient,
 } from './calculator';
 import { validateIngredients, GENERAL_VET_DISCLAIMER, SUPPLEMENT_SAFETY_NOTE } from './safetyValidator';
 import { generateId } from './storage';
@@ -243,17 +251,24 @@ function buildIngredients(
       const amountGrams = isFishOilSupplement ? scaledFishOilGrams(dog.weightLbs, totalGrams) : gramsEach;
       const amountCups = isFishOilSupplement ? undefined : gramsToCups(amountGrams);
       const amountOz = gramsToOz(amountGrams);
+      const amountMl = amountCups ? cupsToMl(amountCups) : Math.max(1, Math.round(amountGrams));
+      const ingredientBase = {
+        name: ing.name,
+        amountGrams,
+        amountCups,
+        amountMl,
+        category: isFishOilSupplement ? 'supplement' as const : category,
+      };
 
       items.push({
         ingredientId: id,
-        name: ing.name,
-        category: isFishOilSupplement ? 'supplement' : category,
-        amountGrams,
-        amountCups,
+        ...ingredientBase,
         amountOz,
         groceryFriendlyAmount: isFishOilSupplement
           ? `about ${amountGrams}g (${amountOz} oz) ${ing.name} total`
           : groceryLabel(amountGrams, ing.name),
+        displayMetric: formatMetricIngredient(ingredientBase),
+        displayVolume: formatVolumeIngredient(ingredientBase),
         prepNote: ing.prepNotes,
       });
     }
@@ -271,14 +286,22 @@ function buildIngredients(
       const g = 50;
       const cat: RecipeIngredient['category'] =
         ing.category === 'treat' ? 'treat' : ing.category;
-      items.push({
-        ingredientId: id,
+      const amountCups = gramsToCups(g);
+      const ingredientBase = {
         name: ing.name,
         category: cat,
         amountGrams: g,
-        amountCups: gramsToCups(g),
+        amountCups,
+        amountMl: cupsToMl(amountCups),
+      };
+
+      items.push({
+        ingredientId: id,
+        ...ingredientBase,
         amountOz: gramsToOz(g),
         groceryFriendlyAmount: groceryLabel(g, ing.name),
+        displayMetric: formatMetricIngredient(ingredientBase),
+        displayVolume: formatVolumeIngredient(ingredientBase),
         prepNote: ing.prepNotes,
       });
     });
@@ -407,7 +430,9 @@ function buildShoppingList(
 ): ShoppingListItem[] {
   const items: ShoppingListItem[] = ingredients.map(ing => ({
     name: ing.name,
-    displayAmount: ing.groceryFriendlyAmount,
+    displayAmount: ing.displayVolume ?? ing.groceryFriendlyAmount,
+    displayAmountMetric: ing.displayMetric,
+    displayAmountVolume: ing.displayVolume,
     category: ingCategoryToShopping(ing.category),
     note: ing.prepNote,
   }));
@@ -424,6 +449,8 @@ function buildShoppingList(
       items.push({
         name: s.name,
         displayAmount: '(ask your vet for dosing)',
+        displayAmountMetric: '(ask your vet for dosing)',
+        displayAmountVolume: '(ask your vet for dosing)',
         category: 'supplement',
         note: s.vetReviewNote,
       });
@@ -433,6 +460,8 @@ function buildShoppingList(
       items.push({
         name: 'Airtight storage containers',
         displayAmount: `${batch.numberOfContainers}+ meal-sized containers`,
+        displayAmountMetric: `${batch.numberOfContainers}+ meal-sized containers`,
+        displayAmountVolume: `${batch.numberOfContainers}+ meal-sized containers`,
         category: 'equipment',
         note: 'Glass or BPA-free plastic. Label each with date.',
       });

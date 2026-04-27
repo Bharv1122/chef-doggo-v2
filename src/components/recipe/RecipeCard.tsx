@@ -5,7 +5,9 @@ import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { formatRecipeType } from '../../utils/formatting';
+import { formatIngredientByPreference } from '../../utils/calculator';
 import { detectRecipeAllergens, getRecipePhoto, type CommonAllergen } from '../../utils/recipeInsights';
+import { useUnitPreference } from '../../contexts/UnitPreferenceContext';
 import type { Recipe } from '../../types/recipe';
 
 const TYPE_COLORS: Record<string, 'orange' | 'green' | 'amber' | 'blue' | 'gray'> = {
@@ -33,9 +35,14 @@ interface Props {
 
 export function RecipeCard({ recipe, dogName, onToggleFavorite }: Props) {
   const navigate = useNavigate();
+  const { unitPreference } = useUnitPreference();
   const recipePhoto = getRecipePhoto(recipe);
   const allergens = detectRecipeAllergens(recipe);
   const visibleAllergens = allergens.slice(0, 2);
+  const ingredientPreview = recipe.ingredients
+    .slice(0, 2)
+    .map(ingredient => formatIngredientByPreference(ingredient, unitPreference))
+    .join(' • ');
 
   return (
     <Card hoverable onClick={() => navigate(`/recipes/${recipe.id}`)} className="overflow-hidden" padding="none">
@@ -55,6 +62,9 @@ export function RecipeCard({ recipe, dogName, onToggleFavorite }: Props) {
             </div>
             <h3 className="font-semibold text-[#1C1917] mt-1.5 text-sm leading-snug">{recipe.name}</h3>
             <p className="text-xs text-[#78716C] mt-1 line-clamp-2">{recipe.description}</p>
+            {ingredientPreview && (
+              <p className="mt-1 text-[11px] text-[#9A8F84] line-clamp-1">Ingredients: {ingredientPreview}</p>
+            )}
 
             {allergens.length > 0 && (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">

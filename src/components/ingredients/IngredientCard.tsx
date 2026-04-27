@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, ArrowLeftRight, AlertCircle } from 'lucide-react';
 import { getIngredientById } from '../../data/ingredients';
+import { useUnitPreference } from '../../contexts/UnitPreferenceContext';
+import { formatIngredientByPreference } from '../../utils/calculator';
 import { Badge } from '../ui/Badge';
 import type { RecipeIngredient } from '../../types/recipe';
 
@@ -15,7 +17,9 @@ const CATEGORY_COLORS: Record<string, 'orange' | 'green' | 'blue' | 'amber' | 'g
 
 export function IngredientCard({ ingredient, onSwap }: Props) {
   const [open, setOpen] = useState(false);
+  const { unitPreference } = useUnitPreference();
   const data = getIngredientById(ingredient.ingredientId);
+  const displayAmount = formatIngredientByPreference(ingredient, unitPreference);
 
   return (
     <div className="rounded-xl border border-[#E7E5E4] bg-white overflow-hidden">
@@ -27,10 +31,10 @@ export function IngredientCard({ ingredient, onSwap }: Props) {
         <Badge variant={CATEGORY_COLORS[ingredient.category]}>{ingredient.category}</Badge>
         <div className="flex-1 min-w-0">
           <span className="text-sm font-medium text-[#1C1917]">{ingredient.name}</span>
-          <span className="text-xs text-[#78716C] ml-2">{ingredient.groceryFriendlyAmount}</span>
+          <span className="text-xs text-[#78716C] ml-2">{displayAmount}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0 text-xs text-[#A8A29E]">
-          <span>{ingredient.amountGrams}g</span>
+          <span>{unitPreference === 'metric' ? 'Metric' : 'US volume'}</span>
           {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </div>
       </button>

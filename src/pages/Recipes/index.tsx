@@ -4,6 +4,8 @@ import { Filter, Heart, Plus } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { useRecipes } from '../../hooks/useRecipes';
+import { useUnitPreference } from '../../contexts/UnitPreferenceContext';
+import { formatIngredientByPreference } from '../../utils/calculator';
 import type { Recipe } from '../../types/recipe';
 
 const FILTERS = ['Life Stage', 'Protein', 'Prep Time', 'Budget', 'Picky Eater', 'Batch Cook'];
@@ -41,6 +43,7 @@ function matchesTab(recipe: Recipe, tab: RecipeTab): boolean {
 export default function RecipesPage() {
   const navigate = useNavigate();
   const { recipes, toggleFavorite } = useRecipes();
+  const { unitPreference } = useUnitPreference();
   const [activeTab, setActiveTab] = useState<RecipeTab>('all');
 
   const filteredRecipes = useMemo(
@@ -186,6 +189,11 @@ export default function RecipesPage() {
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {filteredRecipes.map(recipe => {
               const totalMinutes = recipe.instructions.reduce((sum, step) => sum + (step.durationMinutes ?? 5), 0);
+              const ingredientPreview = recipe.ingredients
+                .slice(0, 2)
+                .map(ingredient => formatIngredientByPreference(ingredient, unitPreference))
+                .join(' • ');
+
               return (
                 <article
                   key={recipe.id}
@@ -199,6 +207,9 @@ export default function RecipesPage() {
                     <div className="grid h-40 place-items-center rounded-xl bg-[#fff4ea] text-4xl">🍲</div>
                     <h3 className="mt-3 text-lg font-semibold leading-tight">{recipe.name}</h3>
                     <p className="mt-1 line-clamp-2 text-sm text-[#8b8378]">{recipe.description}</p>
+                    {ingredientPreview && (
+                      <p className="mt-2 line-clamp-1 text-xs text-[#9a8f84]">Ingredients: {ingredientPreview}</p>
+                    )}
                   </button>
                   <div className="mt-2 flex items-center justify-between text-sm text-[#7d7268]">
                     <span>{recipe.nutrition.caloriesPerServing} kcal/cup</span>

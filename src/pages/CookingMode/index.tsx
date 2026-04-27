@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Mic, MicOff, Volume2, VolumeX, Timer, X, ShoppingCart, Info } from 'lucide-react';
 import { useRecipes } from '../../hooks/useRecipes';
 import { useVoice } from '../../hooks/useVoice';
-import { Button } from '../../components/ui/Button';
+import { useUnitPreference } from '../../contexts/UnitPreferenceContext';
+import { formatIngredientByPreference } from '../../utils/calculator';
 import type { VoiceCommand } from '../../hooks/useVoice';
 
 function useTimer() {
@@ -30,6 +31,7 @@ export default function CookingModePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getRecipe } = useRecipes();
+  const { unitPreference } = useUnitPreference();
   const recipe = getRecipe(id!);
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -103,9 +105,9 @@ export default function CookingModePage() {
           </div>
           <div className="space-y-1.5">
             {recipe.ingredients.map(ing => (
-              <div key={ing.ingredientId} className="flex justify-between text-sm">
+              <div key={ing.ingredientId} className="flex justify-between gap-3 text-sm">
                 <span className="text-[#FDF6E9]">{ing.name}</span>
-                <span className="text-[#A8A29E]">{ing.groceryFriendlyAmount}</span>
+                <span className="text-right text-[#A8A29E]">{formatIngredientByPreference(ing, unitPreference)}</span>
               </div>
             ))}
           </div>

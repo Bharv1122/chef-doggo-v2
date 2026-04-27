@@ -4,8 +4,10 @@ import { Heart, Play, ShoppingBag, Timer } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { useRecipes } from '../../hooks/useRecipes';
+import { useUnitPreference } from '../../contexts/UnitPreferenceContext';
 import { getIngredientById } from '../../data/ingredients';
-import type { Recipe } from '../../types/recipe';
+import { formatIngredientByPreference } from '../../utils/calculator';
+import type { Recipe, ShoppingListItem } from '../../types/recipe';
 
 function getBatchDays(recipe: Recipe): number {
   const dailyCups = Math.max(0.1, recipe.serving.cupsPerMeal * recipe.serving.mealsPerDay);
@@ -78,10 +80,19 @@ function getNutritionBreakdown(recipe: Recipe) {
   };
 }
 
+function formatShoppingItem(item: ShoppingListItem, fallback: string, useMetric: boolean): string {
+  if (useMetric) {
+    return item.displayAmountMetric ?? fallback;
+  }
+
+  return item.displayAmountVolume ?? item.displayAmount ?? fallback;
+}
+
 export default function RecipeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getRecipe, toggleFavorite } = useRecipes();
+  const { unitPreference, setUnitPreference } = useUnitPreference();
 
   const recipe = id ? getRecipe(id) : undefined;
 
@@ -103,8 +114,23 @@ export default function RecipeDetailPage() {
     );
   }
 
-  const ingredients = recipe.ingredients.map(i => `${i.name} — ${i.groceryFriendlyAmount}`);
+  const showMetric = unitPreference === 'metric';
+  const ingredients = recipe.ingredients.map(ingredient => formatIngredientByPreference(ingredient, unitPreference));
   const instructions = recipe.instructions.map(step => step.instruction);
+  const ingredientByName = new Map(recipe.ingredients.map(item => [item.name, item]));
+
+  const shoppingItems = (recipe.shoppingList.length ? recipe.shoppingList : recipe.ingredients.map(ingredient => ({
+    name: ingredient.name,
+    displayAmount: ingredient.groceryFriendlyAmount,
+    category: 'pantry' as const,
+  }))).map(item => {
+    const fallbackIngredient = ingredientByName.get(item.name);
+    const fallback = fallbackIngredient
+      ? formatIngredientByPreference(fallbackIngredient, unitPreference)
+      : item.displayAmount;
+
+    return formatShoppingItem(item, fallback, showMetric);
+  });
 
   const batchYieldCups = Math.round((recipe.batch.totalYieldGrams / 240) * 10) / 10;
   const prepTime = recipe.instructions.find(s => s.stepNumber === 1)?.durationMinutes ?? 15;
@@ -140,7 +166,7 @@ export default function RecipeDetailPage() {
               <button className="text-sm font-semibold text-[#f97316]">Add All to List</button>
             </div>
             <ul className="mt-3 space-y-2 text-sm text-[#6f6459]">
-              {ingredients.map(item => (
+              {shoppingItems.map(item => (
                 <li key={item} className="rounded-xl border border-[#eadfce] bg-white px-3 py-2">{item}</li>
               ))}
             </ul>
@@ -223,7 +249,29 @@ export default function RecipeDetailPage() {
 
       <section className="mt-4 grid gap-4 lg:grid-cols-2">
         <article className="doggo-card p-5">
-          <h2 className="text-[1.35rem] font-semibold">Ingredients</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-[1.35rem] font-semibold">Ingredients</h2>
+            <div className="inline-flex flex-wrap rounded-xl border border-[#f2c8a0] bg-[#fff7ee] p-1 text-xs sm:text-sm">
+              <button
+                className={[
+                  'rounded-lg px-3 py-1.5 font-semibold transition-colors',
+                  !showMetric ? 'bg-[#f97316] text-white shadow-sm' : 'text-[#8a7f73] hover:text-[#f97316]',
+                ].join(' ')}
+                onClick={() => setUnitPreference('us_volume')}
+              >
+                US Volume (cups/tsp/tbsp)
+              </button>
+              <button
+                className={[
+                  'rounded-lg px-3 py-1.5 font-semibold transition-colors',
+                  showMetric ? 'bg-[#f97316] text-white shadow-sm' : 'text-[#8a7f73] hover:text-[#f97316]',
+                ].join(' ')}
+                onClick={() => setUnitPreference('metric')}
+              >
+                Metric (grams/ml)
+              </button>
+            </div>
+          </div>
           <ul className="mt-3 space-y-2 text-sm text-[#6f6459]">
             {ingredients.map(item => (
               <li key={item} className="rounded-xl border border-[#eadfce] bg-white px-3 py-2">{item}</li>

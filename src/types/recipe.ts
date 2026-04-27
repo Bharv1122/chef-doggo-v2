@@ -2,6 +2,7 @@ export type RecipeType = 'topper' | 'full_meal' | 'batch_week' | 'pantry' | 'tre
 export type IngredientCategory = 'protein' | 'carb' | 'vegetable' | 'fat' | 'supplement' | 'treat';
 export type SupplementCategory = 'calcium' | 'omega3' | 'multivitamin' | 'probiotic' | 'joint';
 export type BatchDuration = '1day' | '3day' | '7day';
+export type UnitPreference = 'us_volume' | 'metric';
 
 export interface RecipeIngredient {
   ingredientId: string;
@@ -10,7 +11,10 @@ export interface RecipeIngredient {
   amountGrams: number;
   amountCups?: number;
   amountOz?: number;
+  amountMl?: number;
   groceryFriendlyAmount: string;
+  displayMetric?: string;
+  displayVolume?: string;
   prepNote?: string;
 }
 
@@ -63,6 +67,8 @@ export interface SupplementItem {
 export interface ShoppingListItem {
   name: string;
   displayAmount: string;
+  displayAmountMetric?: string;
+  displayAmountVolume?: string;
   category: 'protein' | 'produce' | 'pantry' | 'supplement' | 'equipment';
   estimatedCostUsd?: number;
   note?: string;

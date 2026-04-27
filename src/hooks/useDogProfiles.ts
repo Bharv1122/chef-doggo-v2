@@ -187,7 +187,6 @@ export function useDogProfiles() {
       const payload: UserPreferenceInsert = {
         user_id: currentUserId,
         active_profile_id: nextProfileId,
-        preferred_units: 'imperial',
         created_at: nowIso,
         updated_at: nowIso,
       };
