@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { generateId, storageGet, storageSet } from '../utils/storage';
@@ -44,6 +44,14 @@ export function useRecipes() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Mirror `recipes` into a ref so mutators can read the latest value without
+  // listing `recipes` in their useCallback deps — that would churn their
+  // identity on every state change and defeat the memoization.
+  const recipesRef = useRef(recipes);
+  useEffect(() => {
+    recipesRef.current = recipes;
+  });
 
   useEffect(() => {
     const client = supabase;
@@ -96,7 +104,7 @@ export function useRecipes() {
     }
   }, [recipes, recipesStorageKey, userId]);
 
-  async function saveRecipe(recipe: Recipe): Promise<Recipe> {
+  const saveRecipe = useCallback(async (recipe: Recipe): Promise<Recipe> => {
     const nowIso = new Date().toISOString();
     const normalized: Recipe = {
       ...recipe,
@@ -106,10 +114,8 @@ export function useRecipes() {
     };
 
     const client = supabase;
-    const currentUserId = userId;
-
-    if (isSupabaseConfigured && client && currentUserId) {
-      const payload = toSavedRecipeRow(currentUserId, normalized);
+    if (isSupabaseConfigured && client && userId) {
+      const payload = toSavedRecipeRow(userId, normalized);
       const { error: saveError } = await client.from('saved_recipes').upsert(payload, {
         onConflict: 'id',
       });
@@ -128,10 +134,10 @@ export function useRecipes() {
     });
 
     return normalized;
-  }
+  }, [userId]);
 
-  async function updateRecipe(id: string, data: Partial<Recipe>): Promise<void> {
-    const nextRecipe = recipes.find(recipe => recipe.id === id);
+  const updateRecipe = useCallback(async (id: string, data: Partial<Recipe>): Promise<void> => {
+    const nextRecipe = recipesRef.current.find(recipe => recipe.id === id);
     if (!nextRecipe) return;
 
     const updated: Recipe = {
@@ -141,10 +147,8 @@ export function useRecipes() {
     };
 
     const client = supabase;
-    const currentUserId = userId;
-
-    if (isSupabaseConfigured && client && currentUserId) {
-      const payload = toSavedRecipeRow(currentUserId, updated);
+    if (isSupabaseConfigured && client && userId) {
+      const payload = toSavedRecipeRow(userId, updated);
       const { error: updateError } = await client
         .from('saved_recipes')
         .upsert(payload, { onConflict: 'id' });
@@ -155,18 +159,16 @@ export function useRecipes() {
     }
 
     setRecipes(prev => prev.map(recipe => (recipe.id === id ? updated : recipe)));
-  }
+  }, [userId]);
 
-  async function deleteRecipe(id: string): Promise<void> {
+  const deleteRecipe = useCallback(async (id: string): Promise<void> => {
     const client = supabase;
-    const currentUserId = userId;
-
-    if (isSupabaseConfigured && client && currentUserId) {
+    if (isSupabaseConfigured && client && userId) {
       const { error: deleteError } = await client
         .from('saved_recipes')
         .delete()
         .eq('id', id)
-        .eq('user_id', currentUserId);
+        .eq('user_id', userId);
 
       if (deleteError) {
         throw new Error(deleteError.message);
@@ -174,26 +176,25 @@ export function useRecipes() {
     }
 
     setRecipes(prev => prev.filter(recipe => recipe.id !== id));
-  }
+  }, [userId]);
 
-  async function toggleFavorite(id: string): Promise<void> {
-    const recipe = recipes.find(item => item.id === id);
+  const toggleFavorite = useCallback(async (id: string): Promise<void> => {
+    const recipe = recipesRef.current.find(item => item.id === id);
     if (!recipe) return;
-
     await updateRecipe(id, { isFavorite: !recipe.isFavorite });
-  }
+  }, [updateRecipe]);
 
-  function getRecipe(id: string): Recipe | undefined {
+  const getRecipe = useCallback((id: string): Recipe | undefined => {
     return recipes.find(recipe => recipe.id === id);
-  }
+  }, [recipes]);
 
-  function getRecipesByDog(dogProfileId: string): Recipe[] {
+  const getRecipesByDog = useCallback((dogProfileId: string): Recipe[] => {
     return recipes.filter(recipe => recipe.dogProfileId === dogProfileId);
-  }
+  }, [recipes]);
 
-  function getFavorites(): Recipe[] {
+  const getFavorites = useCallback((): Recipe[] => {
     return recipes.filter(recipe => recipe.isFavorite);
-  }
+  }, [recipes]);
 
   return {
     recipes,

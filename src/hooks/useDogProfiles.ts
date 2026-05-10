@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { generateId, storageGet, storageSet } from '../utils/storage';
@@ -96,6 +96,15 @@ export function useDogProfiles() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Mirror state into refs so mutators can read latest values without listing
+  // them in deps (which would churn their identity on every state change).
+  const profilesRef = useRef(profiles);
+  const activeProfileIdRef = useRef(activeProfileId);
+  useEffect(() => {
+    profilesRef.current = profiles;
+    activeProfileIdRef.current = activeProfileId;
+  });
+
   useEffect(() => {
     const stored = storageGet<string | null>(activeProfileStorageKey);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- key changes on auth events, so we re-sync the active profile from storage.
@@ -177,17 +186,15 @@ export function useDogProfiles() {
     }
   }, [profiles, profilesStorageKey, userId]);
 
-  function setActiveProfileId(nextProfileId: string | null) {
+  const setActiveProfileId = useCallback((nextProfileId: string | null) => {
     setActiveProfileIdState(nextProfileId);
     storageSet(activeProfileStorageKey, nextProfileId);
 
     const client = supabase;
-    const currentUserId = userId;
-
-    if (isSupabaseConfigured && client && currentUserId) {
+    if (isSupabaseConfigured && client && userId) {
       const nowIso = new Date().toISOString();
       const payload: UserPreferenceInsert = {
-        user_id: currentUserId,
+        user_id: userId,
         active_profile_id: nextProfileId,
         created_at: nowIso,
         updated_at: nowIso,
@@ -195,13 +202,13 @@ export function useDogProfiles() {
 
       void client.from('user_preferences').upsert(payload, { onConflict: 'user_id' });
     }
-  }
+  }, [activeProfileStorageKey, userId]);
 
   const activeProfile = profiles.find(profile => profile.id === activeProfileId) ?? profiles[0] ?? null;
 
-  async function createProfile(
+  const createProfile = useCallback(async (
     data: Omit<DogProfile, 'id' | 'createdAt' | 'updatedAt'>
-  ): Promise<DogProfile> {
+  ): Promise<DogProfile> => {
     const nowIso = new Date().toISOString();
 
     if (isSupabaseConfigured && supabase && userId) {
@@ -218,7 +225,7 @@ export function useDogProfiles() {
 
       const created = toDogProfile(createdRow);
       setProfiles(prev => [...prev, created]);
-      if (!activeProfileId) {
+      if (!activeProfileIdRef.current) {
         setActiveProfileId(created.id);
       }
       return created;
@@ -232,14 +239,14 @@ export function useDogProfiles() {
     };
 
     setProfiles(prev => [...prev, profile]);
-    if (!activeProfileId) {
+    if (!activeProfileIdRef.current) {
       setActiveProfileId(profile.id);
     }
 
     return profile;
-  }
+  }, [setActiveProfileId, userId]);
 
-  async function updateProfile(id: string, data: Partial<DogProfile>): Promise<void> {
+  const updateProfile = useCallback(async (id: string, data: Partial<DogProfile>): Promise<void> => {
     const nowIso = new Date().toISOString();
 
     if (isSupabaseConfigured && supabase && userId) {
@@ -256,9 +263,9 @@ export function useDogProfiles() {
     }
 
     setProfiles(prev => prev.map(profile => (profile.id === id ? { ...profile, ...data, updatedAt: nowIso } : profile)));
-  }
+  }, [userId]);
 
-  async function deleteProfile(id: string): Promise<void> {
+  const deleteProfile = useCallback(async (id: string): Promise<void> => {
     if (isSupabaseConfigured && supabase && userId) {
       const { error: deleteError } = await supabase
         .from('dog_profiles')
@@ -271,17 +278,17 @@ export function useDogProfiles() {
       }
     }
 
-    const remainingProfiles = profiles.filter(profile => profile.id !== id);
+    const remainingProfiles = profilesRef.current.filter(profile => profile.id !== id);
     setProfiles(remainingProfiles);
 
-    if (activeProfileId === id) {
+    if (activeProfileIdRef.current === id) {
       setActiveProfileId(remainingProfiles[0]?.id ?? null);
     }
-  }
+  }, [setActiveProfileId, userId]);
 
-  function getProfile(id: string): DogProfile | undefined {
+  const getProfile = useCallback((id: string): DogProfile | undefined => {
     return profiles.find(profile => profile.id === id);
-  }
+  }, [profiles]);
 
   return {
     profiles,
