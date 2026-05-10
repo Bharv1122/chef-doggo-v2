@@ -87,8 +87,9 @@ export interface AssistantContext {
   activeRecipeName?: string;
 }
 
-// REPLACE THIS FUNCTION BODY with a real API call (Claude, OpenAI, etc.)
-export async function getAssistantResponse(
+// Rule-based fallback used when no LLM API key is configured, or when the
+// LLM call fails. The real (LLM-backed) chat lives in `utils/assistantChat.ts`.
+export async function getFallbackAssistantResponse(
   userMessage: string,
   context: AssistantContext
 ): Promise<string> {

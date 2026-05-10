@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { useDogProfiles } from '../../hooks/useDogProfiles';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useAuth } from '../../contexts/AuthContext';
-import { getAssistantResponse } from '../../data/assistantResponses';
+import { chatWithAssistant } from '../../utils/assistantChat';
 import { generateId } from '../../utils/storage';
 import type { ChatMessage } from '../../types/assistant';
 
@@ -48,14 +48,16 @@ export default function AssistantPage() {
       timestamp: new Date().toISOString(),
     };
 
+    const history = messages;
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setLoading(true);
 
     try {
-      const response = await getAssistantResponse(text.trim(), {
-        dogName: activeProfile?.name,
-        dogWeightLbs: activeProfile?.weightLbs,
+      const response = await chatWithAssistant({
+        history,
+        userMessage: text.trim(),
+        dogProfile: activeProfile,
       });
 
       setMessages(prev => [
