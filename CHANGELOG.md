@@ -2,6 +2,90 @@
 
 All notable changes to **Chef Doggo** are documented in this file.
 
+## [v1.1.0] - 2026-05-10
+
+### Release summary
+A feature-heavy minor release on top of v1.0.0. Major additions: Supabase-backed auth and cloud sync, AI-generated recipe imagery, a rebuilt design system, vet sign-off + PDF export, persistent unit preference, allergen-aware nutrition insights and shopping export. Closes out with a code-quality pass that clears the lint and typecheck backlogs and hardens the recipe/profile hooks against unnecessary re-renders.
+
+### Major features
+
+- **Supabase auth + user-scoped cloud persistence (`src/contexts/AuthContext.tsx`, `src/lib/auth.ts`, `src/lib/supabase.ts`, `src/components/auth/ProtectedRoute.tsx`, `src/pages/Auth/*`, `docs/supabase-setup.md`)**
+  - **What was added:** Email/password login, signup, and password reset flows; protected app routes; user-scoped cloud persistence for `dog_profiles`, `saved_recipes`, and `user_preferences`; logout from the app shell.
+  - **Why it mattered:** Recipes and profiles previously lived only in localStorage, making them fragile and device-bound.
+  - **Technical details:** Adds `@supabase/supabase-js`; `useDogProfiles` and `useRecipes` now branch on `isSupabaseConfigured` and a current `userId`, falling back to localStorage when env vars are missing. Auth is wired in `main.tsx` via `AuthProvider`; protected pages are gated by `ProtectedRoute`. A follow-up checkpoint hardened auth error handling in `src/lib/auth.ts`.
+
+- **AI recipe image generation with on-device caching (`src/utils/recipeImageGenerator.ts`, `src/utils/recipeInsights.ts`, `src/types/recipe.ts`, `src/vite-env.d.ts`)**
+  - **What was added:** Recipes now get generated images that flow through the Recipe card, detail, cooking mode, and listing views.
+  - **Why it mattered:** Plain-text recipe cards lacked appeal and were harder to scan visually.
+  - **Technical details:** New `recipeImageGenerator.ts` utility; `Recipe` type extended with `imageUrl`; recipe card / detail / index / cooking pages now resolve a generated photo via `getRecipePhoto`. Vite env types extended for the API key.
+
+- **Recipe insights: nutrition breakdown chart, allergen warnings, shopping list export (`src/components/recipe/NutritionBreakdownChart.tsx`, `src/components/shopping/ShoppingList.tsx`, `src/components/recipe/RecipeCard.tsx`, `src/pages/Recipes/RecipeDetail.tsx`, `src/utils/recipeInsights.ts`)**
+  - **What was added:** A macro-pie nutrition chart on each recipe; allergen-aware warnings tied to dog profiles; a richer shopping-list view with export.
+  - **Why it mattered:** Owners need at-a-glance macro context, allergen safety signals, and an actionable shopping artifact.
+  - **Technical details:** Adds `recharts` for the pie chart; new `getNutritionMacroBreakdown`, `getNutritionBreakdown`, and `getSubstitutions` helpers in `recipeInsights.ts`; shopping list gains an export path.
+
+- **Vet approval / sign-off + downloadable blank PDF (`src/pages/VetExport/index.tsx`, `public/vet-approval-template.pdf`)**
+  - **What was added:** A vet sign-off section in the export view and a downloadable blank PDF template.
+  - **Why it mattered:** Veterinarian buy-in is required for safe long-term homemade feeding; the printable artifact streamlines that conversation.
+
+- **Mockup-driven design system + page redesign (`src/styles/designSystem.ts`, `src/components/layout/AppShell.tsx`, `src/components/ui/Button.tsx`, `src/components/ui/Card.tsx`, `src/index.css`, `src/pages/Home/index.tsx`, `src/pages/Recipes/*`, `src/pages/DogProfiles/index.tsx`, `src/pages/Treats/index.tsx`, `src/pages/Assistant/index.tsx`)**
+  - **What changed:** Introduces a shared `AppShell`, formalizes the design tokens in `designSystem.ts`, and rewrites Home, Recipes, RecipeDetail, DogProfiles, Treats, and Assistant against the new mockups.
+  - **Why it mattered:** Pages had drifted from the intended visual language during early iteration.
+  - **Technical details:** `AppShell` centralizes top-bar/bottom-nav scaffolding so individual pages don't re-implement layout chrome; `Button` and `Card` get token-aligned variants.
+
+- **Persistent unit preference + dual-format ingredient displays (`src/contexts/UnitPreferenceContext.tsx`, `src/utils/calculator.ts`, `src/types/recipe.ts`, `src/components/shopping/ShoppingList.tsx`, `src/components/ingredients/IngredientCard.tsx`)**
+  - **What was added:** A user-level unit preference (`us_volume` | `metric`) backed by Supabase + localStorage; ingredient amounts now render in both formats.
+  - **Why it mattered:** Owners cooking from these recipes vary between cups/oz and metric; forcing one was a constant friction.
+  - **Technical details:** Adds `formatIngredientByPreference`; recipe ingredient shape gains `displayMetric` / `displayVolume`; preference is hydrated from storage and synced to `user_preferences` via `UnitPreferenceContext`.
+
+### Safety improvements
+- **Strict allergy/avoid-food filtering enforced during recipe generation (`src/utils/recipeGenerator.ts`, `src/utils/safetyValidator.ts`, `src/types/recipe.ts`, `src/components/recipe/RecipeCard.tsx`, `src/pages/Recipes/RecipeDetail.tsx`)**
+  - **What was fixed:** Generation now hard-rejects recipes containing the dog's allergens or avoided foods; the result surface in the card and detail views.
+  - **Why it mattered:** Soft warnings could still leave dangerous ingredients in the bowl.
+  - **Technical details:** `Recipe.allergenSafety` records `checkedTerms`, `allergenFree`, `warning`, and `matchedIngredients`; `safetyValidator` now drives ingredient filtering rather than just post-hoc warnings.
+
+### Bug fixes
+
+- **Newly-introduced recipe/photo/chart/shopping bugs (`src/components/recipe/NutritionBreakdownChart.tsx`, `src/components/shopping/ShoppingList.tsx`, `src/pages/VetExport/index.tsx`, `src/utils/calculator.ts`, `src/utils/formatting.ts`, `src/utils/recipeGenerator.ts`, `src/utils/recipeInsights.ts`)**
+  - 8 follow-up bugs from the recipe-visuals work were swept up in `a0f25f2`.
+
+- **Mobile nav, real data states, recipe filters, calculations (`src/components/layout/AppShell.tsx`, `src/pages/Home/index.tsx`, `src/pages/Recipes/*`, `src/pages/DogProfiles/index.tsx`, `src/pages/Treats/index.tsx`, `src/utils/recipeGenerator.ts`)**
+  - QA pass after the design-system migration: mobile nav corrected, recipe filtering tightened, several calculation paths fixed, and pages now render distinct empty/loading/loaded states correctly.
+
+- **Ingredient customization flow + recipe variety (`src/pages/Recipes/RecipeDetail.tsx`, `src/utils/recipeGenerator.ts`)**
+  - Customizing a recipe's ingredients now updates the saved recipe and shopping list correctly; recipe generation now produces more variety across runs (PR #1).
+
+### Code quality
+
+- **CookingMode voice TDZ bug + full lint/typecheck backlog cleared (`src/pages/CookingMode/index.tsx`, `src/hooks/useVoice.ts`, plus 14 other files)**
+  - **What was fixed:** `handleCommand` referenced `voice` before its `const voice = useVoice(handleCommand)` declaration — a real TDZ-and-stale-closure bug affecting `REPEAT_STEP` and `STOP_LISTENING`. Resolved via a `voiceRef` updated in an effect.
+  - **Lint:** Project went from 40 errors to 0; typecheck went from 9 module-resolution errors to 0 after `npm install`.
+  - **Technical details:** All 14 `any` types replaced with proper unions; all 5 `catch (e: any)` rewritten as `catch (e)` with `e instanceof Error` narrowing; React Compiler `preserve-manual-memoization` warnings fixed by dropping redundant `useMemo`s; stale `setSupported` cascading-render effect in `useVoice` removed.
+
+- **Stable callback identities in `useRecipes` and `useDogProfiles` (`src/hooks/useRecipes.ts`, `src/hooks/useDogProfiles.ts`)**
+  - **What was fixed:** Every returned function (`saveRecipe`, `updateRecipe`, `deleteRecipe`, `toggleFavorite`, `getRecipe`, `getRecipesByDog`, `getFavorites`, `setActiveProfileId`, `createProfile`, `updateProfile`, `deleteProfile`, `getProfile`) was a brand-new closure on every render.
+  - **Why it mattered:** Consumers using these in `useEffect` deps or in `React.memo`'d children would see "changes" every render, defeating memoization.
+  - **Technical details:** Mutators wrapped in `useCallback` with `[userId]` deps; current state read via `recipesRef` / `profilesRef` / `activeProfileIdRef`. Getters wrapped with the relevant state in deps so consumers see fresh data when state churns.
+
+- **README accuracy (`README.md`)**
+  - Removed the "pre-existing ESLint issues" note now that lint passes cleanly.
+
+### Source commits included in this checkpoint
+- `4c59167` - feat: add recipe visuals, allergen warnings, nutrition charts, and shopping list export
+- `a0f25f2` - Checkpoint: fix 8 newly introduced recipe/photo/chart/shopping bugs
+- `f29e813` - feat(vet-export): add vet approval/sign-off section + downloadable blank PDF template
+- `59dffc4` - Implement Chef Doggo mockup-driven design system and page redesign
+- `013a11b` - Add Supabase auth, protected routes, and user-scoped cloud data
+- `cb6a005` - chore(auth-checkpoint): finalize Supabase auth rollout
+- `e5d1d5f` - Fix critical QA bugs: mobile nav, real data states, recipe filters & calculations
+- `c3da139` - Add persistent unit preference and dual-format ingredient displays
+- `79058e5` - fix(safety): enforce strict allergy/avoid-food filtering in recipe generation
+- `dce1c6f` - Add AI recipe image generation with caching and UI integration
+- `b02e010` - Fix ingredient customization flow and improve recipe variety (PR #1)
+- `beb0999` - Fix CookingMode voice TDZ bug and clear lint+typecheck backlog
+- `e0f182b` - Stabilize useRecipes/useDogProfiles callback identities
+- `e1f9d12` - README: drop stale "pre-existing ESLint issues" note
+
 ## [v1.0.0] - 2026-04-25
 
 ### Release summary
