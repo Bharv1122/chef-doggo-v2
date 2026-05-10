@@ -162,7 +162,22 @@ In **Authentication → URL Configuration**:
 
 If `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY` is missing, app falls back to localStorage mode.
 
-## 5) React Native readiness notes
+## 5) Migrations
+
+When adding new columns to existing tables, run the matching `ALTER TABLE` in **SQL Editor**.
+
+### v1.1.x → v1.2 — `medications` column on `dog_profiles`
+
+Adds a string array of current medications per dog so the safety validator can flag drug-food interactions during recipe generation.
+
+```sql
+ALTER TABLE public.dog_profiles
+  ADD COLUMN IF NOT EXISTS medications text[] NOT NULL DEFAULT '{}';
+```
+
+Existing rows are backfilled with an empty array; client code defaults to `[]` for older localStorage-mode profiles. Safe to run multiple times.
+
+## 6) React Native readiness notes
 
 For React Native, reuse the same Supabase project and schema. Differences:
 - Use Expo/React Native env strategy instead of `import.meta.env`

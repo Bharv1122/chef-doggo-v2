@@ -1,4 +1,5 @@
 import { checkToxic } from '../data/toxicIngredients';
+import { checkMedicationInteractions } from '../data/medicationInteractions';
 import type { DogProfile } from '../types/dog';
 import type { SafetyResult } from '../types/recipe';
 
@@ -41,7 +42,14 @@ export function validateIngredients(
     }
   }
 
-  // 4. Life stage flags
+  // 4. Medication interaction check
+  if (dog?.medications?.length) {
+    const medResult = checkMedicationInteractions(dog.medications, ingredientNames);
+    errors.push(...medResult.errors);
+    warnings.push(...medResult.warnings);
+  }
+
+  // 5. Life stage flags
   if (dog?.lifeStage === 'puppy') {
     warnings.push(
       'Puppies have special nutritional requirements that differ from adult dogs. Please consult a veterinarian or veterinary nutritionist before feeding homemade food to a puppy.'

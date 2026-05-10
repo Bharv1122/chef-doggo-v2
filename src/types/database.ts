@@ -30,6 +30,7 @@ export type Database = {
           meals_per_day: number;
           allergies: string[];
           avoid_foods: string[];
+          medications: string[];
           favorite_proteins: string[];
           picky_eater: boolean;
           texture_preference: TexturePreference;
@@ -51,6 +52,7 @@ export type Database = {
           meals_per_day: number;
           allergies?: string[];
           avoid_foods?: string[];
+          medications?: string[];
           favorite_proteins?: string[];
           picky_eater?: boolean;
           texture_preference: TexturePreference;
@@ -72,6 +74,7 @@ export type Database = {
           meals_per_day?: number;
           allergies?: string[];
           avoid_foods?: string[];
+          medications?: string[];
           favorite_proteins?: string[];
           picky_eater?: boolean;
           texture_preference?: TexturePreference;

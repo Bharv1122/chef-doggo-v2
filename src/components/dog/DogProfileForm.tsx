@@ -45,14 +45,23 @@ const PROTEIN_OPTIONS = ['Chicken', 'Turkey', 'Beef', 'Salmon', 'Whitefish', 'La
 const defaults: FormData = {
   name: '', breed: '', ageYears: 1, ageMonths: 0, weightLbs: 25,
   idealWeightLbs: undefined, lifeStage: 'adult', activityLevel: 'moderate',
-  mealsPerDay: 2, allergies: [], avoidFoods: [], favoriteProteins: [],
+  mealsPerDay: 2, allergies: [], avoidFoods: [], medications: [], favoriteProteins: [],
   pickyEater: false, texturePreference: 'chunky', parentSkillLevel: 'beginner',
 };
 
 export function DogProfileForm({ initial, onSave, onCancel, loading }: Props) {
-  const [form, setForm] = useState<FormData>({ ...defaults, ...initial });
+  // Filter out undefined values so old localStorage profiles missing the new
+  // `medications` field fall back to the default empty array instead of undefined.
+  const seed: FormData = { ...defaults };
+  if (initial) {
+    for (const [k, v] of Object.entries(initial)) {
+      if (v !== undefined) (seed as Record<string, unknown>)[k] = v;
+    }
+  }
+  const [form, setForm] = useState<FormData>(seed);
   const [allergyInput, setAllergyInput] = useState('');
   const [avoidInput, setAvoidInput] = useState('');
+  const [medicationInput, setMedicationInput] = useState('');
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
 
   function set<K extends keyof FormData>(key: K, val: FormData[K]) {
@@ -60,7 +69,9 @@ export function DogProfileForm({ initial, onSave, onCancel, loading }: Props) {
     setErrors(e => ({ ...e, [key]: undefined }));
   }
 
-  function addTag(field: 'allergies' | 'avoidFoods', value: string, clear: () => void) {
+  type TagField = 'allergies' | 'avoidFoods' | 'medications';
+
+  function addTag(field: TagField, value: string, clear: () => void) {
     const trimmed = value.trim();
     if (!trimmed) return;
     if (!(form[field] as string[]).includes(trimmed)) {
@@ -69,7 +80,7 @@ export function DogProfileForm({ initial, onSave, onCancel, loading }: Props) {
     clear();
   }
 
-  function removeTag(field: 'allergies' | 'avoidFoods', value: string) {
+  function removeTag(field: TagField, value: string) {
     set(field, (form[field] as string[]).filter(v => v !== value) as string[]);
   }
 
@@ -164,6 +175,32 @@ export function DogProfileForm({ initial, onSave, onCancel, loading }: Props) {
               <span key={a} className="inline-flex items-center gap-1 bg-red-100 text-red-700 rounded-full px-3 py-1 text-sm">
                 {a}
                 <button type="button" onClick={() => removeTag('allergies', a)} className="hover:text-red-900 ml-1">×</button>
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Medications */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-[#78716C] uppercase tracking-wide">Current Medications</h2>
+        <p className="text-xs text-[#78716C]">Used for safety checks against ingredient/supplement interactions (e.g. Rimadyl, insulin, warfarin)</p>
+        <div className="flex gap-2">
+          <input
+            value={medicationInput}
+            onChange={e => setMedicationInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag('medications', medicationInput, () => setMedicationInput('')); }}}
+            placeholder="Type and press Enter (e.g. Rimadyl)"
+            className="flex-1 rounded-xl border border-[#E7E5E4] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+          />
+          <Button type="button" variant="secondary" size="sm" onClick={() => addTag('medications', medicationInput, () => setMedicationInput(''))}>Add</Button>
+        </div>
+        {form.medications.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {form.medications.map(m => (
+              <span key={m} className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-sm">
+                {m}
+                <button type="button" onClick={() => removeTag('medications', m)} className="hover:text-blue-900 ml-1">×</button>
               </span>
             ))}
           </div>

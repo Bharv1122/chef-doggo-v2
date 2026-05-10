@@ -16,6 +16,7 @@ export interface DogProfile {
   mealsPerDay: number;
   allergies: string[];
   avoidFoods: string[];
+  medications: string[];
   favoriteProteins: string[];
   pickyEater: boolean;
   texturePreference: TexturePreference;
