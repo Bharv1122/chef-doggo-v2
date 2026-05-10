@@ -30,11 +30,9 @@ export function UnitPreferenceProvider({ children }: { children: React.ReactNode
 
   useEffect(() => {
     const localValue = storageGet<UnitPreference>(storageKey);
-    if (localValue === 'metric' || localValue === 'us_volume') {
-      setUnitPreferenceState(localValue);
-    } else {
-      setUnitPreferenceState('us_volume');
-    }
+    const next = localValue === 'metric' || localValue === 'us_volume' ? localValue : 'us_volume';
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- storageKey changes when the user signs in/out, so we must re-sync the preference.
+    setUnitPreferenceState(next);
   }, [storageKey]);
 
   useEffect(() => {
@@ -42,6 +40,7 @@ export function UnitPreferenceProvider({ children }: { children: React.ReactNode
     const currentUserId = userId;
 
     if (!isSupabaseConfigured || !client || !currentUserId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- userId changes on auth events, so we need to flip loading off when transitioning to the no-Supabase branch.
       setLoading(false);
       return;
     }
@@ -109,6 +108,7 @@ export function UnitPreferenceProvider({ children }: { children: React.ReactNode
   return <UnitPreferenceContext.Provider value={value}>{children}</UnitPreferenceContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- standard React pattern: pair the Provider with its consumer hook in the same module.
 export function useUnitPreference() {
   const context = useContext(UnitPreferenceContext);
   if (!context) {

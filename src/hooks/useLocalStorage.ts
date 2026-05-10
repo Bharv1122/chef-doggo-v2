@@ -9,6 +9,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
 
   useEffect(() => {
     const stored = storageGet<T>(key);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- re-sync when `key` changes (e.g., auth events scope storage per user).
     setValue(stored !== null ? stored : initialValue);
   }, [key, initialValue]);
 

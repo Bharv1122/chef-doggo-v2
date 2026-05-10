@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChefHat, Shuffle } from 'lucide-react';
+import { ChefHat } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Card } from '../../components/ui/Card';
@@ -12,9 +12,9 @@ import { useRecipes } from '../../hooks/useRecipes';
 import { useDogProfiles } from '../../hooks/useDogProfiles';
 import { generateRecipe } from '../../utils/recipeGenerator';
 import { getIngredientsByCategory } from '../../data/ingredients';
-import type { RecipeType } from '../../types/recipe';
+import type { RecipeType, BatchDuration } from '../../types/recipe';
 
-const toOption = (name: string) => ({ value: name, label: name });
+type BudgetMode = 'standard' | 'budget';
 
 const PROTEINS = getIngredientsByCategory('protein').map(i => ({ value: i.id, label: i.name }));
 const CARBS    = getIngredientsByCategory('carb').map(i => ({ value: i.id, label: i.name }));
@@ -40,8 +40,8 @@ export default function BowlBuilderPage() {
   const [protein, setProtein] = useState(PROTEINS[0]?.value ?? '');
   const [carb, setCarb] = useState(CARBS[0]?.value ?? '');
   const [veg, setVeg] = useState(VEGS[0]?.value ?? '');
-  const [batchDuration, setBatchDuration] = useState<'1day' | '3day' | '7day'>('7day');
-  const [budget, setBudget] = useState<'standard' | 'budget'>('standard');
+  const [batchDuration, setBatchDuration] = useState<BatchDuration>('7day');
+  const [budget, setBudget] = useState<BudgetMode>('standard');
   const [dogId, setDogId] = useState(activeProfile?.id ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -56,14 +56,14 @@ export default function BowlBuilderPage() {
       const recipe = await generateRecipe({
         dog,
         recipeType,
-        batchDuration: batchDuration as any,
+        batchDuration,
         preferredProteinIds: [protein],
         budgetMode: budget === 'budget',
       });
       const saved = await saveRecipe(recipe);
       navigate(`/recipes/${saved.id}`);
-    } catch (e: any) {
-      setError(e.message ?? 'Could not generate recipe. Please try again.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not generate recipe. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -114,9 +114,9 @@ export default function BowlBuilderPage() {
             <h3 className="font-semibold text-[#1C1917] text-sm mb-3">Options</h3>
             <div className="space-y-3">
               {(recipeType === 'full_meal' || recipeType === 'batch_week') && (
-                <Select label="Batch size" value={batchDuration} onChange={e => setBatchDuration(e.target.value as any)} options={BATCH_OPTIONS} />
+                <Select label="Batch size" value={batchDuration} onChange={e => setBatchDuration(e.target.value as BatchDuration)} options={BATCH_OPTIONS} />
               )}
-              <Select label="Budget" value={budget} onChange={e => setBudget(e.target.value as any)} options={BUDGET_OPTIONS} />
+              <Select label="Budget" value={budget} onChange={e => setBudget(e.target.value as BudgetMode)} options={BUDGET_OPTIONS} />
             </div>
           </Card>
 

@@ -87,8 +87,8 @@ export default function PantryModePage() {
       });
       const saved = await saveRecipe(recipe);
       navigate(`/recipes/${saved.id}`);
-    } catch (e: any) {
-      setError(e.message ?? 'Could not generate a recipe from those ingredients.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not generate a recipe from those ingredients.');
     } finally {
       setLoading(false);
     }

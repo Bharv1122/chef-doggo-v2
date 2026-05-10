@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Mic, MicOff, Volume2, VolumeX, Timer, X, ShoppingCart, Info } from 'lucide-react';
 import { useRecipes } from '../../hooks/useRecipes';
@@ -41,24 +41,36 @@ export default function CookingModePage() {
   const [timerMinutes, setTimerMinutes] = useState(5);
   const timer = useTimer();
 
+  // voiceRef breaks the circular dep between handleCommand and useVoice — handleCommand
+  // is passed into useVoice, but its REPEAT_STEP / STOP_LISTENING branches need to call
+  // back into voice. Reading through the ref keeps handleCommand stable across voice's
+  // identity churn each render.
+  const voiceRef = useRef<ReturnType<typeof useVoice> | null>(null);
+
   const handleCommand = useCallback((cmd: VoiceCommand) => {
     switch (cmd) {
       case 'NEXT_STEP': setCurrentStep(s => Math.min(s + 1, (recipe?.instructions.length ?? 1) - 1)); break;
       case 'PREV_STEP': setCurrentStep(s => Math.max(s - 1, 0)); break;
-      case 'REPEAT_STEP': voice.speak(recipe?.instructions[currentStep]?.instruction ?? ''); break;
+      case 'REPEAT_STEP': voiceRef.current?.speak(recipe?.instructions[currentStep]?.instruction ?? ''); break;
       case 'READ_INGREDIENTS': setShowIngredients(true); break;
       case 'SET_TIMER': timer.start(timerMinutes * 60); break;
-      case 'STOP_LISTENING': voice.stopListening(); break;
+      case 'STOP_LISTENING': voiceRef.current?.stopListening(); break;
     }
-  }, [currentStep, recipe, timerMinutes]);
+  }, [currentStep, recipe, timerMinutes, timer]);
 
   const voice = useVoice(handleCommand);
+  useEffect(() => {
+    voiceRef.current = voice;
+  }, [voice]);
 
+  // Auto-speak on step change. Intentionally only depends on currentStep — toggling
+  // `muted` mid-step or `voice` identity churn must not retrigger the utterance.
   useEffect(() => {
     if (!muted && recipe) {
       const step = recipe.instructions[currentStep];
-      if (step) voice.speak(`Step ${step.stepNumber}. ${step.instruction}`);
+      if (step) voiceRef.current?.speak(`Step ${step.stepNumber}. ${step.instruction}`);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
 
   if (!recipe) {

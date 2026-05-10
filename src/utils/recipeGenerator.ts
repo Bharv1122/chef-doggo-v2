@@ -238,7 +238,7 @@ export async function generateRecipe(input: GeneratorInput): Promise<Recipe> {
 
   // 6. Build supplement list (full meals only)
   const supplements: SupplementItem[] = recipeType === 'full_meal' || recipeType === 'batch_week'
-    ? buildSupplements(dog)
+    ? buildSupplements()
     : [];
 
   // 7. Build shopping list
@@ -787,7 +787,7 @@ function buildInstructions(template: RecipeTemplate, recipeType: RecipeType): Co
   }
 
   steps.push({
-    stepNumber: step++,
+    stepNumber: step,
     instruction: 'Serve at room temperature or slightly warm. Start with small amounts if transitioning from commercial food, and increase gradually over 7–10 days.',
     tip: isTopper
       ? 'Add the topper on top of your dog\'s regular food. Start with a tablespoon and adjust to the recommended serving amount.'
@@ -798,7 +798,7 @@ function buildInstructions(template: RecipeTemplate, recipeType: RecipeType): Co
 }
 
 // ── Supplement builder ────────────────────────────────────────────────────────
-function buildSupplements(dog: DogProfile): SupplementItem[] {
+function buildSupplements(): SupplementItem[] {
   return getAllSupplements().map(s => ({
     name: s.name,
     category: s.category,

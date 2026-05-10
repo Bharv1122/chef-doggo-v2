@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calculator, Info } from 'lucide-react';
+import { Calculator } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Card } from '../../components/ui/Card';
@@ -8,7 +8,7 @@ import { Select } from '../../components/ui/Select';
 import { Disclaimer } from '../../components/ui/Disclaimer';
 import { calcRER, calcDER, calcServing, calcBatch, splitIngredients, gramsToOz } from '../../utils/calculator';
 import { formatCalories, formatGrams, formatOz } from '../../utils/formatting';
-import type { DogProfile } from '../../types/dog';
+import type { DogProfile, LifeStage, ActivityLevel } from '../../types/dog';
 
 const LIFE_STAGE_OPTIONS = [
   { value: 'puppy', label: 'Puppy (under 1 year)' },
@@ -83,13 +83,13 @@ export default function CalculatorPage() {
             <Select
               label="Life Stage"
               value={dog.lifeStage}
-              onChange={e => set('lifeStage', e.target.value as any)}
+              onChange={e => set('lifeStage', e.target.value as LifeStage)}
               options={LIFE_STAGE_OPTIONS}
             />
             <Select
               label="Activity Level"
               value={dog.activityLevel}
-              onChange={e => set('activityLevel', e.target.value as any)}
+              onChange={e => set('activityLevel', e.target.value as ActivityLevel)}
               options={ACTIVITY_OPTIONS}
             />
             <Select

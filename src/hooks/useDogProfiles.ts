@@ -98,6 +98,7 @@ export function useDogProfiles() {
 
   useEffect(() => {
     const stored = storageGet<string | null>(activeProfileStorageKey);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- key changes on auth events, so we re-sync the active profile from storage.
     setActiveProfileIdState(stored ?? null);
   }, [activeProfileStorageKey]);
 
@@ -107,6 +108,7 @@ export function useDogProfiles() {
 
     if (!isSupabaseConfigured || !client || !currentUserId) {
       const localProfiles = storageGet<DogProfile[]>(profilesStorageKey) ?? [];
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- userId changes on sign-in/out; we must hydrate profiles from local storage in the no-Supabase branch.
       setProfiles(localProfiles);
       setLoading(false);
       return;

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Heart, Play, ShoppingBag, Timer, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
@@ -165,8 +165,10 @@ export default function RecipeDetailPage() {
   const [customizeSuccess, setCustomizeSuccess] = useState<string | null>(null);
   const [isSavingCustomization, setIsSavingCustomization] = useState(false);
 
-  const substitutions = useMemo(() => (recipe ? getSubstitutions(recipe) : []), [recipe]);
-  const nutrition = useMemo(() => (recipe ? getNutritionBreakdown(recipe) : null), [recipe]);
+  // useMemo dropped intentionally — React Compiler auto-memoizes, and the manual
+  // useMemo here triggered its preserve-manual-memoization warning on `recipe`.
+  const substitutions = recipe ? getSubstitutions(recipe) : [];
+  const nutrition = recipe ? getNutritionBreakdown(recipe) : null;
 
   if (!recipe) {
     return (
@@ -261,8 +263,8 @@ export default function RecipeDetailPage() {
       });
       setCustomizeSuccess('Ingredients updated successfully.');
       setIsCustomizeOpen(false);
-    } catch (error: any) {
-      setCustomizeError(error?.message ?? 'Could not save ingredient changes. Please try again.');
+    } catch (error) {
+      setCustomizeError(error instanceof Error ? error.message : 'Could not save ingredient changes. Please try again.');
     } finally {
       setIsSavingCustomization(false);
     }

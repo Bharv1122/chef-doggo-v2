@@ -5,6 +5,27 @@ export type VoiceCommand =
   | 'READ_INGREDIENTS' | 'SET_TIMER' | 'SAVE_RECIPE'
   | 'ADD_TO_SHOPPING' | 'MAKE_CHEAPER' | 'STOP_LISTENING';
 
+// Minimal subset of the Web Speech API surface we use. The native lib.dom types
+// don't ship with SpeechRecognition (still experimental / vendor-prefixed), so
+// we declare just what we need.
+interface SRAlternative { transcript: string }
+interface SRResult { isFinal: boolean; 0: SRAlternative; length: number }
+interface SREvent { results: ArrayLike<SRResult> }
+interface SRInstance {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  onresult: ((e: SREvent) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+}
+type SRWindow = Window & {
+  SpeechRecognition?: new () => SRInstance;
+  webkitSpeechRecognition?: new () => SRInstance;
+};
+
 const COMMAND_MAP: Array<{ phrases: string[]; command: VoiceCommand }> = [
   { phrases: ['start cooking', 'begin', 'let\'s go'], command: 'START_COOKING' },
   { phrases: ['next', 'next step', 'continue', 'go on', 'forward'], command: 'NEXT_STEP' },
@@ -36,12 +57,11 @@ const hasSpeechSynthesis =
 export function useVoice(onCommand?: (cmd: VoiceCommand) => void) {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [supported, setSupported] = useState({ recognition: false, synthesis: false });
-  const recognitionRef = useRef<any>(null);
-
-  useEffect(() => {
-    setSupported({ recognition: hasSpeechRecognition, synthesis: hasSpeechSynthesis });
-  }, []);
+  // hasSpeechRecognition / hasSpeechSynthesis are evaluated once at module load with
+  // a typeof-window guard, so it's safe to use them as initial state directly. The
+  // previous useEffect+setSupported pattern caused an unnecessary cascading render.
+  const [supported] = useState({ recognition: hasSpeechRecognition, synthesis: hasSpeechSynthesis });
+  const recognitionRef = useRef<SRInstance | null>(null);
 
   const speak = useCallback((text: string, rate = 0.9) => {
     if (!hasSpeechSynthesis) return;
@@ -58,19 +78,14 @@ export function useVoice(onCommand?: (cmd: VoiceCommand) => void) {
 
   const startListening = useCallback(() => {
     if (!hasSpeechRecognition) return;
-    const SRConstructor = ((window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition) as new () => SpeechRecognitionEvent & {
-      continuous: boolean; interimResults: boolean; lang: string;
-      start(): void; stop(): void;
-      onresult: ((e: any) => void) | null;
-      onerror: (() => void) | null;
-      onend: (() => void) | null;
-    };
-    const recognition = new SRConstructor();
+    const SR = (window as SRWindow).SpeechRecognition ?? (window as SRWindow).webkitSpeechRecognition;
+    if (!SR) return;
+    const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = false;
     recognition.lang = 'en-US';
 
-    recognition.onresult = (e: any) => {
+    recognition.onresult = (e: SREvent) => {
       const last = e.results[e.results.length - 1];
       if (!last.isFinal) return;
       const text = last[0].transcript;

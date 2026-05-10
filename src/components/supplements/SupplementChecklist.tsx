@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckSquare, Square, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { CheckSquare, Square, ChevronDown, ChevronUp } from 'lucide-react';
 import { Disclaimer } from '../ui/Disclaimer';
 import type { SupplementItem } from '../../types/recipe';
 
@@ -13,7 +13,8 @@ export function SupplementChecklist({ supplements }: Props) {
 
   const toggle = (name: string) => setChecked(prev => {
     const next = new Set(prev);
-    next.has(name) ? next.delete(name) : next.add(name);
+    if (next.has(name)) next.delete(name);
+    else next.add(name);
     return next;
   });
 

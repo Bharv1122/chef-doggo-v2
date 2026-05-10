@@ -27,13 +27,12 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Lazy-init: when Supabase isn't configured there's nothing to load, so we
+  // start in the not-loading state. This avoids a setState-in-effect on mount.
+  const [loading, setLoading] = useState(() => isSupabaseConfigured);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
-      setSession(null);
-      setUser(null);
-      setLoading(false);
       return;
     }
 
@@ -109,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- standard React pattern: pair the Provider with its consumer hook in the same module.
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {

@@ -51,6 +51,7 @@ export function useRecipes() {
 
     if (!isSupabaseConfigured || !client || !currentUserId) {
       const localRecipes = storageGet<Recipe[]>(recipesStorageKey) ?? [];
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- userId changes on sign-in/out; we must hydrate recipes from local storage in the no-Supabase branch.
       setRecipes(localRecipes);
       setLoading(false);
       return;

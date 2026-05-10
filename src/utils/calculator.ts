@@ -70,7 +70,6 @@ export function calcBatch(serving: ServingInfo, duration: BatchDuration): BatchI
   const days = duration === '1day' ? 1 : duration === '3day' ? 3 : 7;
   const totalYieldGrams = serving.totalDailyGrams * days;
   const totalMeals = serving.mealsPerDay * days;
-  const mealsPerContainer = serving.mealsPerDay; // one container per day
   const numberOfContainers = days;
 
   let fridgeMeals: number;

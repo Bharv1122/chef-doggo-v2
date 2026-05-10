@@ -61,8 +61,8 @@ export default function WizardPage() {
       });
       const saved = await saveRecipe(recipe);
       navigate(`/recipes/${saved.id}`);
-    } catch (e: any) {
-      setError(e.message ?? 'Could not generate recipe. Please try again.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not generate recipe. Please try again.');
       setLoading(false);
     }
   }

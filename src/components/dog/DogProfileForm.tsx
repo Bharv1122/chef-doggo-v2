@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Input, Textarea } from '../ui/Input';
+import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Toggle } from '../ui/Toggle';
 import { Button } from '../ui/Button';
@@ -64,13 +64,13 @@ export function DogProfileForm({ initial, onSave, onCancel, loading }: Props) {
     const trimmed = value.trim();
     if (!trimmed) return;
     if (!(form[field] as string[]).includes(trimmed)) {
-      set(field, [...(form[field] as string[]), trimmed] as any);
+      set(field, [...(form[field] as string[]), trimmed] as string[]);
     }
     clear();
   }
 
   function removeTag(field: 'allergies' | 'avoidFoods', value: string) {
-    set(field, (form[field] as string[]).filter(v => v !== value) as any);
+    set(field, (form[field] as string[]).filter(v => v !== value) as string[]);
   }
 
   function toggleProtein(protein: string) {
