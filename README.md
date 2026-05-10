@@ -60,5 +60,5 @@ npm run preview  # preview production build
 
 ## Notes
 
-- This project currently contains pre-existing ESLint issues unrelated to Supabase integration.
 - Build passes successfully (`npm run build`).
+- Lint and typecheck both pass clean (`npm run lint`, `npm run build`).
