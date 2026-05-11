@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Heart, Play, ShoppingBag, Timer, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Heart, Play, ShoppingBag, Timer, ShieldAlert, ShieldCheck, Package } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -206,6 +206,7 @@ export default function RecipeDetailPage() {
   const recipe = id ? getRecipe(id) : undefined;
   const dogProfile = recipe ? getProfile(recipe.dogProfileId) : undefined;
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+  const [isBatchOpen, setIsBatchOpen] = useState(false);
   const [draftIngredients, setDraftIngredients] = useState<RecipeIngredient[]>([]);
   const [customizeError, setCustomizeError] = useState<string | null>(null);
   const [customizeSuccess, setCustomizeSuccess] = useState<string | null>(null);
@@ -479,6 +480,7 @@ export default function RecipeDetailPage() {
             <div className="mt-5 flex flex-wrap gap-2">
               <Button icon={<Play size={15} />} onClick={() => navigate(`/cook/${recipe.id}`)}>Start Cooking</Button>
               <Button variant="secondary" icon={<Timer size={15} />}>Start Voice Cooking</Button>
+              <Button variant="secondary" icon={<Package size={15} />} onClick={() => setIsBatchOpen(true)}>Batch Portions</Button>
               <Button variant="secondary" icon={<ShoppingBag size={15} />}>View Full List</Button>
             </div>
           </div>
@@ -636,6 +638,62 @@ export default function RecipeDetailPage() {
       <section className="mt-4 doggo-soft-card p-4 text-center text-sm text-[#746a5f]">
         Real ingredients • Paw separators • Smart portions • Happy, healthy dogs • Made with love 🧡
       </section>
+
+      <Modal
+        open={isBatchOpen}
+        onClose={() => setIsBatchOpen(false)}
+        title="Batch Portions"
+        size="lg"
+        footer={(
+          <div className="flex justify-end">
+            <Button onClick={() => setIsBatchOpen(false)}>Got it</Button>
+          </div>
+        )}
+      >
+        <p className="text-sm text-[#6f6459]">
+          Here's how this batch breaks down — total yield, how many meals it makes, and how to split between fridge and freezer.
+        </p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-[#eadfce] bg-[#fff9f0] p-4 text-center">
+            <p className="text-2xl font-bold text-[#2b2118]">{batchYieldCups}</p>
+            <p className="text-[11px] uppercase tracking-wide text-[#8b8378]">cups total</p>
+            <p className="mt-0.5 text-xs text-[#7f7469]">~{recipe.batch.totalYieldGrams}g</p>
+          </div>
+          <div className="rounded-2xl border border-[#eadfce] bg-[#fff9f0] p-4 text-center">
+            <p className="text-2xl font-bold text-[#2b2118]">{recipe.batch.numberOfMeals}</p>
+            <p className="text-[11px] uppercase tracking-wide text-[#8b8378]">total meals</p>
+            <p className="mt-0.5 text-xs text-[#7f7469]">{recipe.serving.cupsPerMeal.toFixed(2)} cups each</p>
+          </div>
+          <div className="rounded-2xl border border-[#eadfce] bg-[#fff9f0] p-4 text-center">
+            <p className="text-2xl font-bold text-[#2b2118]">{recipe.batch.numberOfContainers}</p>
+            <p className="text-[11px] uppercase tracking-wide text-[#8b8378]">container{recipe.batch.numberOfContainers === 1 ? '' : 's'}</p>
+            <p className="mt-0.5 text-xs text-[#7f7469]">batch covers ~{batchDays > 0 ? batchDays.toFixed(1) : (recipe.batch.numberOfMeals / Math.max(1, recipe.serving.mealsPerDay)).toFixed(1)} days</p>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-[#eadfce] bg-white p-4">
+          <h3 className="text-sm font-semibold text-[#2b2118]">Storage plan</h3>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-[#dce9ff] bg-[#f2f7ff] p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#5574a8]">🧊 Fridge</p>
+              <p className="mt-1 text-lg font-bold text-[#2b2118]">{recipe.batch.fridgeMeals} meal{recipe.batch.fridgeMeals === 1 ? '' : 's'}</p>
+              <p className="mt-0.5 text-xs text-[#5f6b85]">Eat within {recipe.storage.fridgeDays} days. Airtight container.</p>
+            </div>
+            <div className="rounded-xl border border-[#d0e4f0] bg-[#eaf6ff] p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#3c6f8a]">🥶 Freezer</p>
+              <p className="mt-1 text-lg font-bold text-[#2b2118]">{recipe.batch.freezerMeals} meal{recipe.batch.freezerMeals === 1 ? '' : 's'}</p>
+              <p className="mt-0.5 text-xs text-[#456f85]">Up to {recipe.storage.freezerMonths} months. Portion before freezing.</p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-[#7f7469]">
+            <strong>Daily plan:</strong> {recipe.serving.cupsPerMeal.toFixed(2)} cups per meal × {recipe.serving.mealsPerDay} meal{recipe.serving.mealsPerDay === 1 ? '' : 's'}/day = <strong>{dailyCups.toFixed(2)} cups per day</strong>{dogProfile?.name ? ` for ${dogProfile.name}` : ''}.
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-[#7f7469]">
+            <strong>Thawing:</strong> {recipe.storage.thawInstructions}
+          </p>
+        </div>
+      </Modal>
 
       <Modal
         open={isCustomizeOpen}
