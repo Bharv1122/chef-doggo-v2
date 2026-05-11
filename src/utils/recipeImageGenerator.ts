@@ -1,9 +1,9 @@
 import type { Recipe, RecipeIngredient, RecipeType } from '../types/recipe';
 
 const IMAGE_CACHE_STORAGE_KEY = 'chef-doggo:recipe-image-cache:v1';
-const IMAGE_MODEL = import.meta.env.VITE_ABACUS_IMAGE_MODEL ?? 'flux2';
-const IMAGE_API_KEY = import.meta.env.VITE_ABACUS_API_KEY;
-const ROUTELLM_BASE_URL = import.meta.env.VITE_ABACUS_ROUTELLM_BASE_URL ?? 'https://routellm.abacus.ai/v1';
+const IMAGE_MODEL = import.meta.env.VITE_LLM_IMAGE_MODEL ?? 'flux2';
+const IMAGE_API_KEY = import.meta.env.VITE_LLM_API_KEY;
+const LLM_BASE_URL = import.meta.env.VITE_LLM_BASE_URL ?? 'https://routellm.abacus.ai/v1';
 
 // Image generation uses Abacus.AI's RouteLLM image format (model "flux2",
 // `modalities` + `image_config` request fields). Other OpenAI-compatible
@@ -124,12 +124,12 @@ export async function generateRecipeImage(recipe: Pick<Recipe, 'name' | 'type' |
     return fromStorage;
   }
 
-  if (!IMAGE_API_KEY || !isImageCapableEndpoint(ROUTELLM_BASE_URL)) {
+  if (!IMAGE_API_KEY || !isImageCapableEndpoint(LLM_BASE_URL)) {
     return DEFAULT_RECIPE_IMAGE_URL;
   }
 
   try {
-    const response = await fetch(`${ROUTELLM_BASE_URL}/chat/completions`, {
+    const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${IMAGE_API_KEY}`,

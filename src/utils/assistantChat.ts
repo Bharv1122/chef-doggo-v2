@@ -2,9 +2,9 @@ import type { DogProfile } from '../types/dog';
 import type { ChatMessage } from '../types/assistant';
 import { getFallbackAssistantResponse } from '../data/assistantResponses';
 
-const API_KEY = import.meta.env.VITE_ABACUS_API_KEY;
-const MODEL = import.meta.env.VITE_ABACUS_TEXT_MODEL ?? 'gpt-4o-mini';
-const BASE_URL = import.meta.env.VITE_ABACUS_ROUTELLM_BASE_URL ?? 'https://routellm.abacus.ai/v1';
+const API_KEY = import.meta.env.VITE_LLM_API_KEY;
+const MODEL = import.meta.env.VITE_LLM_TEXT_MODEL ?? 'gpt-4o-mini';
+const BASE_URL = import.meta.env.VITE_LLM_BASE_URL ?? 'https://routellm.abacus.ai/v1';
 // Trim long histories to control token usage. Keep the most recent N turns.
 const MAX_HISTORY_MESSAGES = 16;
 
