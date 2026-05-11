@@ -87,11 +87,14 @@ async function callLlm(
   }
 
   const data = (await response.json()) as OpenAIChatResponse;
-  const content = data.choices?.[0]?.message?.content?.trim();
-  if (!content) {
+  const raw = data.choices?.[0]?.message?.content?.trim();
+  if (!raw) {
     throw new Error('Chat completion response did not contain content');
   }
-  return content;
+  // Some models (e.g. Gemma) emit a `<thought>…</thought>` reasoning block
+  // before the final answer. Strip it so the chat shows only the answer.
+  const cleaned = raw.replace(/<thought>[\s\S]*?<\/thought>\s*/g, '').trim();
+  return cleaned || raw;
 }
 
 export interface ChatRequest {
