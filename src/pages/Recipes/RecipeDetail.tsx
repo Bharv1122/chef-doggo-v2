@@ -5,6 +5,7 @@ import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { IngredientCard } from '../../components/ingredients/IngredientCard';
+import { SupplementChecklist } from '../../components/supplements/SupplementChecklist';
 import { useRecipes } from '../../hooks/useRecipes';
 import { useDogProfiles } from '../../hooks/useDogProfiles';
 import { useUnitPreference } from '../../contexts/UnitPreferenceContext';
@@ -541,6 +542,18 @@ export default function RecipeDetailPage() {
           Homemade diets need supplementation (calcium, omega-3, multivitamin) to be nutritionally complete. See the supplement checklist below.
         </p>
       </section>
+
+      {recipe.supplements.length > 0 && (
+        <section className="mt-4 doggo-card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-[1.35rem] font-semibold">Supplements</h2>
+            <span className="rounded-full bg-[#fff1df] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#a16b38]">Required for completeness</span>
+          </div>
+          <div className="mt-3">
+            <SupplementChecklist supplements={recipe.supplements} />
+          </div>
+        </section>
+      )}
 
       <section className="mt-4 grid gap-4 lg:grid-cols-2">
         <article className="doggo-card p-5">
