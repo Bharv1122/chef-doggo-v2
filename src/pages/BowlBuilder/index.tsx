@@ -12,19 +12,13 @@ import { useRecipes } from '../../hooks/useRecipes';
 import { useDogProfiles } from '../../hooks/useDogProfiles';
 import { generateRecipe } from '../../utils/recipeGenerator';
 import { getIngredientsByCategory } from '../../data/ingredients';
-import type { RecipeType, BatchDuration } from '../../types/recipe';
+import type { RecipeType } from '../../types/recipe';
 
 type BudgetMode = 'standard' | 'budget';
 
 const PROTEINS = getIngredientsByCategory('protein').map(i => ({ value: i.id, label: i.name }));
 const CARBS    = getIngredientsByCategory('carb').map(i => ({ value: i.id, label: i.name }));
 const VEGS     = getIngredientsByCategory('vegetable').map(i => ({ value: i.id, label: i.name }));
-
-const BATCH_OPTIONS = [
-  { value: '1day', label: '1 day' },
-  { value: '3day', label: '3 days' },
-  { value: '7day', label: '7 days (full week)' },
-];
 
 const BUDGET_OPTIONS = [
   { value: 'standard', label: 'Standard' },
@@ -40,7 +34,6 @@ export default function BowlBuilderPage() {
   const [protein, setProtein] = useState(PROTEINS[0]?.value ?? '');
   const [carb, setCarb] = useState(CARBS[0]?.value ?? '');
   const [veg, setVeg] = useState(VEGS[0]?.value ?? '');
-  const [batchDuration, setBatchDuration] = useState<BatchDuration>('7day');
   const [budget, setBudget] = useState<BudgetMode>('standard');
   const [dogId, setDogId] = useState(activeProfile?.id ?? '');
   const [loading, setLoading] = useState(false);
@@ -56,7 +49,8 @@ export default function BowlBuilderPage() {
       const recipe = await generateRecipe({
         dog,
         recipeType,
-        batchDuration,
+        // Batch recipes always feed for a week. Other types make a single meal.
+        batchDuration: recipeType === 'batch_week' ? '7day' : '1day',
         preferredProteinIds: [protein],
         budgetMode: budget === 'budget',
       });
@@ -109,12 +103,14 @@ export default function BowlBuilderPage() {
             </div>
           </Card>
 
-          {/* Batch + budget */}
+          {/* Options */}
           <Card>
             <h3 className="font-semibold text-[#1C1917] text-sm mb-3">Options</h3>
             <div className="space-y-3">
-              {(recipeType === 'full_meal' || recipeType === 'batch_week') && (
-                <Select label="Batch size" value={batchDuration} onChange={e => setBatchDuration(e.target.value as BatchDuration)} options={BATCH_OPTIONS} />
+              {recipeType === 'batch_week' && (
+                <p className="rounded-lg bg-[#fff7ee] border border-[#f2c8a0] px-3 py-2 text-xs text-[#a16b38]">
+                  📦 Batch recipes feed your dog for <strong>7 days</strong>. Chef Doggo will scale everything to a full week.
+                </p>
               )}
               <Select label="Budget" value={budget} onChange={e => setBudget(e.target.value as BudgetMode)} options={BUDGET_OPTIONS} />
             </div>

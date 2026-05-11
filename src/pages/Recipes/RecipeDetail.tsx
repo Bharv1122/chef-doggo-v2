@@ -480,7 +480,6 @@ export default function RecipeDetailPage() {
             <div className="mt-5 flex flex-wrap gap-2">
               <Button icon={<Play size={15} />} onClick={() => navigate(`/cook/${recipe.id}`)}>Start Cooking</Button>
               <Button variant="secondary" icon={<Timer size={15} />}>Start Voice Cooking</Button>
-              <Button variant="secondary" icon={<Package size={15} />} onClick={() => setIsBatchOpen(true)}>Batch Portions</Button>
               <Button variant="secondary" icon={<ShoppingBag size={15} />}>View Full List</Button>
             </div>
           </div>
@@ -561,24 +560,35 @@ export default function RecipeDetailPage() {
         <article className="doggo-card p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-[1.35rem] font-semibold">Ingredients</h2>
-            <div className="inline-flex flex-wrap rounded-xl border border-[#f2c8a0] bg-[#fff7ee] p-1 text-xs sm:text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex flex-wrap rounded-xl border border-[#f2c8a0] bg-[#fff7ee] p-1 text-xs sm:text-sm">
+                <button
+                  className={[
+                    'rounded-lg px-3 py-1.5 font-semibold transition-colors',
+                    !showMetric ? 'bg-[#f97316] text-white shadow-sm' : 'text-[#8a7f73] hover:text-[#f97316]',
+                  ].join(' ')}
+                  onClick={() => setUnitPreference('us_volume')}
+                >
+                  US Volume (cups/tsp/tbsp)
+                </button>
+                <button
+                  className={[
+                    'rounded-lg px-3 py-1.5 font-semibold transition-colors',
+                    showMetric ? 'bg-[#f97316] text-white shadow-sm' : 'text-[#8a7f73] hover:text-[#f97316]',
+                  ].join(' ')}
+                  onClick={() => setUnitPreference('metric')}
+                >
+                  Metric (grams/ml)
+                </button>
+              </div>
               <button
-                className={[
-                  'rounded-lg px-3 py-1.5 font-semibold transition-colors',
-                  !showMetric ? 'bg-[#f97316] text-white shadow-sm' : 'text-[#8a7f73] hover:text-[#f97316]',
-                ].join(' ')}
-                onClick={() => setUnitPreference('us_volume')}
+                type="button"
+                onClick={() => setIsBatchOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#f2c8a0] bg-[#fff7ee] px-3 py-1.5 text-xs font-semibold text-[#a16b38] transition-colors hover:bg-[#fff1df] sm:text-sm"
+                title="View batch portions"
               >
-                US Volume (cups/tsp/tbsp)
-              </button>
-              <button
-                className={[
-                  'rounded-lg px-3 py-1.5 font-semibold transition-colors',
-                  showMetric ? 'bg-[#f97316] text-white shadow-sm' : 'text-[#8a7f73] hover:text-[#f97316]',
-                ].join(' ')}
-                onClick={() => setUnitPreference('metric')}
-              >
-                Metric (grams/ml)
+                <Package size={14} />
+                Batch
               </button>
             </div>
           </div>
