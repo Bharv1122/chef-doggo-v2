@@ -1,4 +1,11 @@
 import type { AssistantIntent } from '../types/assistant';
+import {
+  lookupCookingMethods,
+  lookupIngredientSafety,
+  lookupSupplement,
+  lookupCondition,
+  type CookingMethod,
+} from './assistantKnowledge';
 
 // ── Intent detection ─────────────────────────────────────────────────────────
 // Replace getAssistantResponse() body with a real API call when ready
@@ -87,12 +94,114 @@ export interface AssistantContext {
   activeRecipeName?: string;
 }
 
+// ── Specific-question matchers (knowledge-based) ─────────────────────────────
+
+const COOKING_QUESTION = /\b(how do i|how to|how should i|whats the best way to|what's the best way to|best way to|can i)\s+(cook|prep|prepare|steam|boil|bake|roast|saute|sauté|grill|pan[\s-]?cook|dehydrate)\b/i;
+const SAFETY_QUESTION = /\b(can (dogs|my dog)|is\s+\w+\s+(safe|toxic|ok|bad|dangerous|alright|good))\b/i;
+const SUPPLEMENT_QUESTION = /\b(tell me about|how much|what is|how to dose|dose of|info on)\b.*\b(calcium|fish oil|omega|multivitamin|probiotic|glucosamine|chondroitin|supplement)\b/i;
+const CONDITION_QUESTION = /\b(kidney|renal|ckd|pancreatitis|diabetic|diabetes|allergies|allergy|heart|cardiac|chf|itching|skin issue)\b/i;
+
+function formatCookingMethod(method: CookingMethod, ingredient: string, index: number): string {
+  const header = index === 0 ? `**${ingredient.charAt(0).toUpperCase() + ingredient.slice(1)}** — ${method.method}` : `Alternative: ${method.method}`;
+  const lines = [
+    header,
+    method.description,
+    `**Prep:** ${method.prep}`,
+    `**Time:** ${method.time}`,
+    `**Doneness:** ${method.doneness}`,
+    `**Serving:** ${method.serving}`,
+  ];
+  if (method.notes) lines.push(`*Note: ${method.notes}*`);
+  return lines.join('\n');
+}
+
+function tryKnowledgeMatch(userMessage: string, context: AssistantContext): string | null {
+  const lower = userMessage.toLowerCase();
+  const dogName = context.dogName ?? 'your pup';
+
+  // 1. Cooking-method questions ("how do I steam carrots?")
+  if (COOKING_QUESTION.test(lower) || /\b(steam|boil|bake|roast)\b/i.test(lower)) {
+    const cooking = lookupCookingMethods(lower);
+    if (cooking) {
+      const blocks = cooking.methods.map((method, index) => formatCookingMethod(method, cooking.ingredient, index));
+      return blocks.join('\n\n');
+    }
+  }
+
+  // 2. Ingredient safety ("can dogs eat avocado?", "is X safe?")
+  if (SAFETY_QUESTION.test(lower) || /\b(toxic|safe|poison|harm)\b/i.test(lower)) {
+    const record = lookupIngredientSafety(lower);
+    if (record) {
+      const verdict = {
+        safe: `✅ **${record.name.charAt(0).toUpperCase() + record.name.slice(1)} is safe for dogs.**`,
+        limited: `⚠️ **${record.name.charAt(0).toUpperCase() + record.name.slice(1)} is OK in limited amounts.**`,
+        unsafe: `⚠️ **${record.name.charAt(0).toUpperCase() + record.name.slice(1)} is not recommended for dogs.**`,
+        toxic: `🚫 **${record.name.charAt(0).toUpperCase() + record.name.slice(1)} is TOXIC to dogs. Do not feed.**`,
+      }[record.safety];
+      const lines = [verdict, '', record.why];
+      if (record.guidance) lines.push('', record.guidance);
+      if (record.safety === 'toxic') {
+        lines.push('', '**If your dog ate this:** Call your vet or ASPCA Animal Poison Control (888-426-4435) immediately.');
+      }
+      return lines.join('\n');
+    }
+  }
+
+  // 3. Supplement questions
+  if (SUPPLEMENT_QUESTION.test(lower) || /\b(calcium|fish oil|omega|multivitamin|probiotic|glucosamine)\b/i.test(lower)) {
+    const supplement = lookupSupplement(lower);
+    if (supplement) {
+      const lines = [
+        `**${supplement.name.charAt(0).toUpperCase() + supplement.name.slice(1)}**`,
+        '',
+        supplement.purpose,
+        '',
+        `**Dose:** ${supplement.dose}`,
+        `**Timing:** ${supplement.timing}`,
+      ];
+      if (supplement.cautions) lines.push('', `⚠️ ${supplement.cautions}`);
+      return lines.join('\n');
+    }
+  }
+
+  // 4. Condition-specific dietary questions
+  if (CONDITION_QUESTION.test(lower)) {
+    const condition = lookupCondition(lower);
+    if (condition) {
+      const lines = [
+        `**Feeding ${dogName} with ${condition.name}**`,
+        '',
+        condition.summary,
+        '',
+        '**Foods that help:**',
+        ...condition.doFeed.map(f => `- ${f}`),
+        '',
+        '**Avoid:**',
+        ...condition.avoid.map(f => `- ${f}`),
+        '',
+        `*${condition.notes}*`,
+      ];
+      return lines.join('\n');
+    }
+  }
+
+  return null;
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
 // Rule-based fallback used when no LLM API key is configured, or when the
 // LLM call fails. The real (LLM-backed) chat lives in `utils/assistantChat.ts`.
 export async function getFallbackAssistantResponse(
   userMessage: string,
   context: AssistantContext
 ): Promise<string> {
+  // Try the specific knowledge base first — these answers are detailed and
+  // actually answer the user's question (e.g. "steam carrots 8–10 min until
+  // fork-tender" instead of "cook properly").
+  const specific = tryKnowledgeMatch(userMessage, context);
+  if (specific) return specific;
+
+  // Fall back to the broader intent templates.
   const intent = detectIntent(userMessage);
   const pool = RESPONSES[intent];
   const template = pool[Math.floor(Math.random() * pool.length)];
