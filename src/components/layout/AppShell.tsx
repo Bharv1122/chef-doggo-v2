@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { Button } from '../ui/Button';
+import { FloatingChatHead } from '../chat/FloatingChatHead';
 import { useAuth } from '../../contexts/AuthContext';
 
 type MainNavKey = 'home' | 'recipes' | 'dogs' | 'treats' | 'assistant';
@@ -222,6 +223,10 @@ export function AppShell({ active, children, rightRail }: AppShellProps) {
 
         {rightRail && <aside className="hidden min-w-0 space-y-4 xl:block">{rightRail}</aside>}
       </div>
+
+      {/* Floating Chef Doggo chat head — hidden on the dedicated Assistant
+          page since that page IS the full-screen chat. */}
+      {active !== 'assistant' && <FloatingChatHead />}
     </div>
   );
 }
