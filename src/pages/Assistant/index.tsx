@@ -8,7 +8,7 @@ import { useDogProfiles } from '../../hooks/useDogProfiles';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useRecipes } from '../../hooks/useRecipes';
 import { useAuth } from '../../contexts/AuthContext';
-import { chatWithAssistant } from '../../utils/assistantChat';
+import { chatWithAssistant, extractRecipeFromText, looksLikeRecipe } from '../../utils/assistantChat';
 import { recipeFromChatJson } from '../../utils/chatRecipeConverter';
 import { generateId } from '../../utils/storage';
 import type { ChatMessage } from '../../types/assistant';
@@ -38,6 +38,7 @@ export default function AssistantPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [savingRecipeForId, setSavingRecipeForId] = useState<string | null>(null);
+  const [saveErrorForId, setSaveErrorForId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,16 +91,29 @@ export default function AssistantPage() {
   }
 
   async function handleSaveRecipe(message: ChatMessage) {
-    if (!message.parsedRecipe || !activeProfile || savingRecipeForId) return;
+    if (!activeProfile || savingRecipeForId) return;
     setSavingRecipeForId(message.id);
+    setSaveErrorForId(null);
     try {
-      const recipe = recipeFromChatJson(message.parsedRecipe, activeProfile);
+      let parsed = message.parsedRecipe;
+      if (!parsed) {
+        parsed = (await extractRecipeFromText(message.content)) ?? undefined;
+        if (!parsed) {
+          setSaveErrorForId(message.id);
+          return;
+        }
+        setMessages(prev =>
+          prev.map(m => (m.id === message.id ? { ...m, parsedRecipe: parsed } : m))
+        );
+      }
+      const recipe = recipeFromChatJson(parsed, activeProfile);
       const saved = await saveRecipe(recipe);
       setMessages(prev =>
-        prev.map(m => (m.id === message.id ? { ...m, savedRecipeId: saved.id } : m))
+        prev.map(m => (m.id === message.id ? { ...m, parsedRecipe: parsed, savedRecipeId: saved.id } : m))
       );
     } catch (error) {
       console.error('[AssistantPage] saveRecipe failed', error);
+      setSaveErrorForId(message.id);
     } finally {
       setSavingRecipeForId(null);
     }
@@ -214,7 +228,7 @@ export default function AssistantPage() {
                   {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
-              {message.role === 'assistant' && message.parsedRecipe && (
+              {message.role === 'assistant' && message.content && (message.parsedRecipe || looksLikeRecipe(message.content)) && (
                 <div className="mt-1.5 max-w-[78%]">
                   {message.savedRecipeId ? (
                     <Link
@@ -225,16 +239,23 @@ export default function AssistantPage() {
                       Saved · open recipe
                     </Link>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => void handleSaveRecipe(message)}
-                      disabled={!activeProfile || savingRecipeForId === message.id}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-[#f2c8a0] bg-[#fff7ee] px-3 py-1 text-xs font-semibold text-[#a16b38] hover:bg-[#fff1df] disabled:cursor-not-allowed disabled:opacity-60"
-                      title={activeProfile ? 'Save this recipe to your list' : 'Add a dog profile first to save recipes'}
-                    >
-                      <BookmarkPlus size={12} />
-                      {savingRecipeForId === message.id ? 'Saving…' : 'Save to my recipes'}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void handleSaveRecipe(message)}
+                        disabled={!activeProfile || savingRecipeForId === message.id}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[#f2c8a0] bg-[#fff7ee] px-3 py-1 text-xs font-semibold text-[#a16b38] hover:bg-[#fff1df] disabled:cursor-not-allowed disabled:opacity-60"
+                        title={activeProfile ? 'Save this recipe to your list' : 'Add a dog profile first to save recipes'}
+                      >
+                        <BookmarkPlus size={12} />
+                        {savingRecipeForId === message.id ? 'Saving…' : 'Save to my recipes'}
+                      </button>
+                      {saveErrorForId === message.id && (
+                        <p className="mt-1 text-[11px] text-[#b46251]">
+                          Couldn't extract a clean recipe. Try asking Chef Doggo to list ingredients with amounts in grams.
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               )}

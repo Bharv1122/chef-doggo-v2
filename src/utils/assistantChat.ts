@@ -8,9 +8,6 @@ const BASE_URL = import.meta.env.VITE_LLM_BASE_URL ?? 'https://routellm.abacus.a
 // Trim long histories to control token usage. Keep the most recent N turns.
 const MAX_HISTORY_MESSAGES = 16;
 
-const RECIPE_BLOCK_START = '```recipe-json';
-const RECIPE_BLOCK_END = '```';
-
 const SYSTEM_PROMPT = `You are Chef Doggo, an expert canine nutrition assistant trusted by owners cooking fresh, homemade meals for their dogs. You combine three areas of expertise:
 
 1. **Veterinary nutrition** — AAFCO requirements, macro and micronutrient balance, calorie calculations, and how needs change with life stage (puppy/adult/senior), activity level, and health conditions (kidney disease, pancreatitis, diabetes, allergies, etc.).
@@ -33,25 +30,29 @@ const SYSTEM_PROMPT = `You are Chef Doggo, an expert canine nutrition assistant 
 - Personalize using the dog profile when one is provided (name, breed, weight, conditions, allergies, medications).
 - If you're genuinely uncertain, say so — but offer the closest accurate answer you can.
 
-**Recipe output (when the user asks for a complete recipe):**
-After your natural-language answer, append a JSON block in this exact format so the app can save it to the user's recipe list:
+**When giving a complete recipe:** structure it clearly with an "Ingredients" section (each item on its own line with an amount) and a numbered "Instructions" or "Steps" section. Keep ingredient amounts as one day's worth of food for a typical 30-pound adult dog — the app will scale to the user's actual dog automatically.`;
 
-\`\`\`recipe-json
+// Tight, single-purpose prompt for the second-pass recipe extraction call.
+// Returns ONLY a JSON object — no preamble, no markdown.
+const EXTRACT_RECIPE_PROMPT = `You convert a homemade dog-food recipe (written in natural language) into structured JSON. Output ONLY valid JSON — no markdown, no commentary.
+
+Schema:
 {
-  "name": "Concise recipe name (max 60 chars)",
-  "description": "1–2 sentence summary",
-  "type": "full_meal",
+  "name": string,                // concise recipe name, max 60 chars
+  "description": string,         // 1–2 sentence summary
+  "type": "full_meal" | "batch_week" | "topper" | "treat" | "pantry",
   "ingredients": [
-    {"name": "Chicken Breast", "grams": 200, "prepNote": "boneless, boiled and diced"},
-    {"name": "White Rice", "grams": 100, "prepNote": "cooked"}
+    { "name": string, "grams": number, "prepNote"?: string }
   ],
-  "instructions": ["Step 1...", "Step 2...", "Step 3..."]
+  "instructions": [ string ]     // step text, in order
 }
-\`\`\`
 
-- \`type\` must be one of: \`full_meal\`, \`batch_week\`, \`topper\`, \`treat\`, \`pantry\`.
-- \`grams\` should be ONE DAY of food for a typical 30-pound adult dog. The app scales to the actual dog's needs automatically.
-- Only emit this block when you're recommending an actual recipe — NOT for portion advice, ingredient questions, calculations, supplement guidance, or general tips. If it's not a recipe, do not include the block at all.`;
+Rules:
+- Pick the best \`type\` from context. If unclear, use "full_meal".
+- \`grams\` is the absolute weight of each ingredient. Convert oz/lb/cups to grams using standard ratios (1 cup cooked rice ≈ 200g; 1 cup veg ≈ 100g; 1 oz ≈ 28g; 1 lb ≈ 454g).
+- If the recipe is portioned for a week or batch, divide back down to ONE DAY of food for a typical 30-pound adult dog.
+- Omit any ingredient you can't parse with a real gram amount. Never invent ingredients.
+- Output ONLY the JSON object. No \`\`\` fences, no explanation.`;
 
 interface OpenAIChatChoice {
   message?: { role?: string; content?: string };
@@ -89,49 +90,61 @@ function trimHistory(messages: readonly ChatMessage[]): ChatMessage[] {
 }
 
 function stripThoughtBlocks(text: string): string {
-  return text.replace(/<thought>[\s\S]*?<\/thought>\s*/g, '').trim();
+  // Remove complete <thought>…</thought> pairs.
+  let cleaned = text.replace(/<thought>[\s\S]*?<\/thought>\s*/g, '');
+  // During streaming, the close tag may not have arrived yet. Hide anything
+  // from an unmatched <thought> opener onward so it doesn't leak into the bubble.
+  const openIdx = cleaned.indexOf('<thought>');
+  if (openIdx !== -1) cleaned = cleaned.slice(0, openIdx);
+  return cleaned.trim();
 }
 
-// Find a ```recipe-json fenced block in the text and parse it. Returns the
-// parsed recipe (or null if none/invalid) and the cleaned text with the block
-// removed so it doesn't render to the user.
-function extractRecipeBlock(text: string): { cleanedText: string; parsedRecipe: ParsedChatRecipe | null } {
-  const startIdx = text.indexOf(RECIPE_BLOCK_START);
-  if (startIdx === -1) return { cleanedText: text, parsedRecipe: null };
+// Heuristic: does this assistant response describe a complete enough recipe to
+// be worth offering a "Save to my recipes" action? We look for an Ingredients
+// header with a few line items AND either an Instructions header or numbered
+// cooking steps. This is loose on purpose — false positives just mean the user
+// gets a Save button on something that won't extract well, which they can ignore.
+export function looksLikeRecipe(text: string): boolean {
+  const lower = text.toLowerCase();
+  const hasIngredientsHeader = /\bingredients?\s*[:\n]/i.test(text);
+  const hasInstructionsHeader = /\b(instructions?|steps|directions|preparation)\b\s*[:\n]/i.test(text);
+  const numberedSteps = (text.match(/^\s*\d+[.)]\s+\S/gm) ?? []).length;
+  const bulletLines = (text.match(/^\s*[-*•]\s+\S/gm) ?? []).length;
+  if (!hasIngredientsHeader) return false;
+  // Require some structure under the ingredients header — either an
+  // instructions section or a few bullets/steps.
+  if (hasInstructionsHeader) return bulletLines + numberedSteps >= 2;
+  return numberedSteps >= 2 && bulletLines >= 2;
+}
 
-  const afterStart = startIdx + RECIPE_BLOCK_START.length;
-  const endIdx = text.indexOf(RECIPE_BLOCK_END, afterStart);
-  if (endIdx === -1) {
-    // Open fence, no close yet — strip the partial so the user doesn't see raw JSON.
-    return { cleanedText: text.slice(0, startIdx).trimEnd(), parsedRecipe: null };
-  }
-
-  const jsonStr = text.slice(afterStart, endIdx).trim();
-  const cleanedText = (text.slice(0, startIdx) + text.slice(endIdx + RECIPE_BLOCK_END.length)).trim();
-
+function tryParseJsonObject(text: string): unknown {
+  const trimmed = text.trim();
+  // Strip optional ```json fences a model sometimes adds despite instructions.
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)```$/);
+  const candidate = fenced ? fenced[1].trim() : trimmed;
   try {
-    const parsed = JSON.parse(jsonStr) as ParsedChatRecipe;
-    if (
-      typeof parsed?.name === 'string' &&
-      Array.isArray(parsed?.ingredients) &&
-      parsed.ingredients.every(i => typeof i?.name === 'string' && typeof i?.grams === 'number') &&
-      Array.isArray(parsed?.instructions) &&
-      parsed.instructions.every(s => typeof s === 'string')
-    ) {
-      return { cleanedText, parsedRecipe: parsed };
-    }
-    return { cleanedText, parsedRecipe: null };
+    return JSON.parse(candidate);
   } catch {
-    return { cleanedText, parsedRecipe: null };
+    // Fallback: find the first {...} object in the text.
+    const objMatch = candidate.match(/\{[\s\S]*\}/);
+    if (!objMatch) return null;
+    try {
+      return JSON.parse(objMatch[0]);
+    } catch {
+      return null;
+    }
   }
 }
 
-// Compute the "safe to display" prefix of the full streamed text. We stop
-// updating the visible content as soon as we see the recipe-json marker so the
-// user never sees raw JSON appearing in the chat bubble.
-function displayPrefix(fullText: string): string {
-  const idx = fullText.indexOf(RECIPE_BLOCK_START);
-  return idx === -1 ? fullText : fullText.slice(0, idx).trimEnd();
+function isValidParsedRecipe(value: unknown): value is ParsedChatRecipe {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Partial<ParsedChatRecipe>;
+  if (typeof v.name !== 'string' || !v.name) return false;
+  if (!Array.isArray(v.ingredients) || v.ingredients.length === 0) return false;
+  if (!v.ingredients.every(i => i && typeof i.name === 'string' && typeof i.grams === 'number' && Number.isFinite(i.grams) && i.grams > 0)) return false;
+  if (!Array.isArray(v.instructions) || v.instructions.length === 0) return false;
+  if (!v.instructions.every(s => typeof s === 'string' && s.trim().length > 0)) return false;
+  return true;
 }
 
 async function streamLlm(
@@ -148,7 +161,7 @@ async function streamLlm(
       model: MODEL,
       messages: apiMessages,
       temperature: 0.4,
-      max_tokens: 900,
+      max_tokens: 1800,
       stream: true,
     }),
   });
@@ -183,7 +196,7 @@ async function streamLlm(
         const delta = event.choices?.[0]?.delta?.content;
         if (!delta) continue;
         fullText += delta;
-        const visible = stripThoughtBlocks(displayPrefix(fullText));
+        const visible = stripThoughtBlocks(fullText);
         if (visible !== lastEmitted) {
           onChunk(visible);
           lastEmitted = visible;
@@ -239,11 +252,8 @@ export async function chatWithAssistant({
   try {
     const fullText = await streamLlm(apiMessages, chunk => onChunk?.(chunk));
     const cleaned = stripThoughtBlocks(fullText);
-    const { cleanedText, parsedRecipe } = extractRecipeBlock(cleaned);
-    // Emit one final visible-text update so the chunk handler reflects the
-    // fully-cleaned content (recipe block stripped if present).
-    onChunk?.(cleanedText);
-    return { text: cleanedText, parsedRecipe };
+    onChunk?.(cleaned);
+    return { text: cleaned, parsedRecipe: null };
   } catch (error) {
     console.error('[assistantChat] LLM call failed, using fallback', error);
     const text = await getFallbackAssistantResponse(userMessage, {
@@ -252,5 +262,42 @@ export async function chatWithAssistant({
     });
     onChunk?.(text);
     return { text, parsedRecipe: null };
+  }
+}
+
+// Second-pass extraction: takes an assistant message that looks like a recipe
+// and asks the LLM to convert it to our structured JSON shape. Returns null if
+// the model produced unparseable output or there's no API key configured.
+export async function extractRecipeFromText(recipeText: string): Promise<ParsedChatRecipe | null> {
+  if (!API_KEY) return null;
+
+  try {
+    const response = await fetch(`${BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: EXTRACT_RECIPE_PROMPT },
+          { role: 'user', content: recipeText },
+        ],
+        temperature: 0,
+        max_tokens: 1200,
+      }),
+    });
+
+    if (!response.ok) return null;
+    const data = (await response.json()) as OpenAIChatResponse;
+    const raw = data.choices?.[0]?.message?.content?.trim();
+    if (!raw) return null;
+    const cleaned = stripThoughtBlocks(raw);
+    const parsed = tryParseJsonObject(cleaned);
+    return isValidParsedRecipe(parsed) ? parsed : null;
+  } catch (error) {
+    console.error('[assistantChat] recipe extraction failed', error);
+    return null;
   }
 }
