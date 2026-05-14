@@ -183,11 +183,12 @@ export function useDogProfiles() {
     };
   }, [activeProfileStorageKey, profilesStorageKey, userId]);
 
-  useEffect(() => {
-    if (!isSupabaseConfigured || !supabase || !userId) {
-      storageSet(profilesStorageKey, profiles);
-    }
-  }, [profiles, profilesStorageKey, userId]);
+  // (Intentionally NOT mirroring `profiles` into storage on every change.)
+  // That effect used to live here, but it fires once on mount with the
+  // initial `[]` state — which races the hydrate effect above and clobbers
+  // anything a previous page just wrote. The mutators (createProfile,
+  // updateProfile, deleteProfile) already write to storage in the
+  // no-Supabase branch, so the mirror was redundant as well as buggy.
 
   const setActiveProfileId = useCallback((nextProfileId: string | null) => {
     setActiveProfileIdState(nextProfileId);

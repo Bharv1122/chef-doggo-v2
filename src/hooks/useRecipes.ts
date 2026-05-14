@@ -98,11 +98,11 @@ export function useRecipes() {
     };
   }, [recipesStorageKey, userId]);
 
-  useEffect(() => {
-    if (!isSupabaseConfigured || !supabase || !userId) {
-      storageSet(recipesStorageKey, recipes);
-    }
-  }, [recipes, recipesStorageKey, userId]);
+  // (Intentionally NOT mirroring `recipes` into storage on every change.)
+  // See the matching note in useDogProfiles — the mirror effect raced the
+  // hydrate effect and clobbered just-saved data on the next page mount.
+  // saveRecipe / updateRecipe / deleteRecipe / toggleFavorite all write to
+  // storage themselves in the no-Supabase branch.
 
   const saveRecipe = useCallback(async (recipe: Recipe): Promise<Recipe> => {
     const nowIso = new Date().toISOString();
