@@ -11,6 +11,7 @@ import { useDogProfiles } from '../../hooks/useDogProfiles';
 import { useUnitPreference } from '../../contexts/UnitPreferenceContext';
 import { getIngredientById } from '../../data/ingredients';
 import {
+  calcBatch,
   cupsToMl,
   formatIngredientByPreference,
   formatMetricIngredient,
@@ -20,7 +21,13 @@ import {
 } from '../../utils/calculator';
 import { checkSingleIngredient } from '../../utils/safetyValidator';
 import { getRecipePhoto } from '../../utils/recipeInsights';
-import type { Recipe, RecipeIngredient, ShoppingListItem } from '../../types/recipe';
+import type { BatchDuration, Recipe, RecipeIngredient, ShoppingListItem } from '../../types/recipe';
+
+const BATCH_DURATION_OPTIONS: Array<{ value: BatchDuration; label: string; days: number }> = [
+  { value: '1day', label: '1 day', days: 1 },
+  { value: '3day', label: '3 days', days: 3 },
+  { value: '7day', label: '7 days', days: 7 },
+];
 
 function getBatchDays(recipe: Recipe): number {
   const dailyCups = Math.max(0.1, recipe.serving.cupsPerMeal * recipe.serving.mealsPerDay);
@@ -207,6 +214,9 @@ export default function RecipeDetailPage() {
   const dogProfile = recipe ? getProfile(recipe.dogProfileId) : undefined;
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [isBatchOpen, setIsBatchOpen] = useState(false);
+  const [batchDuration, setBatchDuration] = useState<BatchDuration>(
+    recipe?.batch.usedFor ?? '7day'
+  );
   const [draftIngredients, setDraftIngredients] = useState<RecipeIngredient[]>([]);
   const [customizeError, setCustomizeError] = useState<string | null>(null);
   const [customizeSuccess, setCustomizeSuccess] = useState<string | null>(null);
@@ -344,6 +354,13 @@ export default function RecipeDetailPage() {
   const prepTime = recipe.instructions.find(s => s.stepNumber === 1)?.durationMinutes ?? 15;
   const cookTime = recipe.instructions.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0) || 35;
   const dailyCups = Math.max(0.1, recipe.serving.cupsPerMeal * recipe.serving.mealsPerDay);
+
+  // Batch modal: user-selected duration, recomputed live so they can compare
+  // 1/3/7-day batches without changing the saved recipe.
+  const selectedBatch = calcBatch(recipe.serving, batchDuration);
+  const selectedBatchCups = Math.round((selectedBatch.totalYieldGrams / 240) * 10) / 10;
+  const selectedBatchDays =
+    BATCH_DURATION_OPTIONS.find(option => option.value === batchDuration)?.days ?? 1;
 
   const isBatch = recipe.type === 'batch_week';
   const batchDays = isBatch ? getBatchDays(recipe) : 0;
@@ -661,24 +678,52 @@ export default function RecipeDetailPage() {
         )}
       >
         <p className="text-sm text-[#6f6459]">
-          Here's how this batch breaks down — total yield, how many meals it makes, and how to split between fridge and freezer.
+          Pick how many days you want to batch-cook for, and we'll show how it breaks down — total yield, meals, and how to split between fridge and freezer.
         </p>
+
+        <div className="mt-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#8b8378]">Batch size</p>
+          <div
+            role="radiogroup"
+            aria-label="Batch duration"
+            className="mt-2 inline-flex rounded-xl border border-[#eadfce] bg-[#fffaf2] p-1"
+          >
+            {BATCH_DURATION_OPTIONS.map(option => {
+              const active = batchDuration === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setBatchDuration(option.value)}
+                  className={[
+                    'rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors',
+                    active ? 'bg-[#f97316] text-white shadow-sm' : 'text-[#8a7f73] hover:text-[#f97316]',
+                  ].join(' ')}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-[#eadfce] bg-[#fff9f0] p-4 text-center">
-            <p className="text-2xl font-bold text-[#2b2118]">{batchYieldCups}</p>
+            <p className="text-2xl font-bold text-[#2b2118]">{selectedBatchCups}</p>
             <p className="text-[11px] uppercase tracking-wide text-[#8b8378]">cups total</p>
-            <p className="mt-0.5 text-xs text-[#7f7469]">~{recipe.batch.totalYieldGrams}g</p>
+            <p className="mt-0.5 text-xs text-[#7f7469]">~{selectedBatch.totalYieldGrams}g</p>
           </div>
           <div className="rounded-2xl border border-[#eadfce] bg-[#fff9f0] p-4 text-center">
-            <p className="text-2xl font-bold text-[#2b2118]">{recipe.batch.numberOfMeals}</p>
+            <p className="text-2xl font-bold text-[#2b2118]">{selectedBatch.numberOfMeals}</p>
             <p className="text-[11px] uppercase tracking-wide text-[#8b8378]">total meals</p>
             <p className="mt-0.5 text-xs text-[#7f7469]">{recipe.serving.cupsPerMeal.toFixed(2)} cups each</p>
           </div>
           <div className="rounded-2xl border border-[#eadfce] bg-[#fff9f0] p-4 text-center">
-            <p className="text-2xl font-bold text-[#2b2118]">{recipe.batch.numberOfContainers}</p>
-            <p className="text-[11px] uppercase tracking-wide text-[#8b8378]">container{recipe.batch.numberOfContainers === 1 ? '' : 's'}</p>
-            <p className="mt-0.5 text-xs text-[#7f7469]">batch covers ~{batchDays > 0 ? batchDays.toFixed(1) : (recipe.batch.numberOfMeals / Math.max(1, recipe.serving.mealsPerDay)).toFixed(1)} days</p>
+            <p className="text-2xl font-bold text-[#2b2118]">{selectedBatch.numberOfContainers}</p>
+            <p className="text-[11px] uppercase tracking-wide text-[#8b8378]">container{selectedBatch.numberOfContainers === 1 ? '' : 's'}</p>
+            <p className="mt-0.5 text-xs text-[#7f7469]">covers {selectedBatchDays} day{selectedBatchDays === 1 ? '' : 's'}</p>
           </div>
         </div>
 
@@ -687,12 +732,12 @@ export default function RecipeDetailPage() {
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-[#dce9ff] bg-[#f2f7ff] p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-[#5574a8]">🧊 Fridge</p>
-              <p className="mt-1 text-lg font-bold text-[#2b2118]">{recipe.batch.fridgeMeals} meal{recipe.batch.fridgeMeals === 1 ? '' : 's'}</p>
+              <p className="mt-1 text-lg font-bold text-[#2b2118]">{selectedBatch.fridgeMeals} meal{selectedBatch.fridgeMeals === 1 ? '' : 's'}</p>
               <p className="mt-0.5 text-xs text-[#5f6b85]">Eat within {recipe.storage.fridgeDays} days. Airtight container.</p>
             </div>
             <div className="rounded-xl border border-[#d0e4f0] bg-[#eaf6ff] p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-[#3c6f8a]">🥶 Freezer</p>
-              <p className="mt-1 text-lg font-bold text-[#2b2118]">{recipe.batch.freezerMeals} meal{recipe.batch.freezerMeals === 1 ? '' : 's'}</p>
+              <p className="mt-1 text-lg font-bold text-[#2b2118]">{selectedBatch.freezerMeals} meal{selectedBatch.freezerMeals === 1 ? '' : 's'}</p>
               <p className="mt-0.5 text-xs text-[#456f85]">Up to {recipe.storage.freezerMonths} months. Portion before freezing.</p>
             </div>
           </div>
