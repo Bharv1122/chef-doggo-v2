@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, X, MessageCircle, BookmarkPlus, Check } from 'lucide-react';
+import { Send, X, MessageCircle, BookmarkPlus, Check, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MessageContent } from './MessageContent';
 import { Button } from '../ui/Button';
@@ -83,6 +83,14 @@ export function FloatingChatHead() {
     }
   }
 
+  function handleClearConversation() {
+    if (messages.length === 0) return;
+    const confirmed = window.confirm('Clear all messages with Chef Doggo? Saved recipes are unaffected — only this conversation will be cleared.');
+    if (!confirmed) return;
+    setMessages([]);
+    setSaveErrorForId(null);
+  }
+
   async function handleSaveRecipe(message: ChatMessage) {
     if (!activeProfile || extractingForId || savingRecipeForId) return;
     setSaveErrorForId(null);
@@ -153,6 +161,16 @@ export function FloatingChatHead() {
             Vet · nutrition · supplements
           </p>
         </div>
+        <button
+          type="button"
+          onClick={handleClearConversation}
+          disabled={messages.length === 0 || loading}
+          className="grid h-8 w-8 place-items-center rounded-full text-[#7f7469] transition-colors hover:bg-[#fff3e5] hover:text-[#b46251] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#7f7469]"
+          title="Clear this conversation"
+          aria-label="Clear conversation"
+        >
+          <Trash2 size={15} />
+        </button>
         <button
           type="button"
           onClick={() => setIsOpen(false)}

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, BookmarkPlus, Check } from 'lucide-react';
+import { Send, BookmarkPlus, Check, Trash2 } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { MessageContent } from '../../components/chat/MessageContent';
@@ -89,6 +89,14 @@ export default function AssistantPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleClearConversation() {
+    if (messages.length === 0) return;
+    const confirmed = window.confirm('Clear all messages with Chef Doggo? Saved recipes are unaffected — only this conversation will be cleared.');
+    if (!confirmed) return;
+    setMessages([]);
+    setSaveErrorForId(null);
   }
 
   async function handleSaveRecipe(message: ChatMessage) {
@@ -216,6 +224,21 @@ export default function AssistantPage() {
       </section>
 
       <section className="mt-4 doggo-card flex h-[62vh] flex-col p-4">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-[#7f7469]">
+            {messages.length} message{messages.length === 1 ? '' : 's'}
+          </p>
+          <button
+            type="button"
+            onClick={handleClearConversation}
+            disabled={messages.length === 0 || loading}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#eadfce] bg-white px-3 py-1 text-xs font-semibold text-[#7f7469] transition-colors hover:border-[#f2c8a0] hover:text-[#b46251] disabled:cursor-not-allowed disabled:opacity-40"
+            title="Clear this conversation"
+          >
+            <Trash2 size={13} />
+            Clear conversation
+          </button>
+        </div>
         <div className="flex-1 space-y-3 overflow-y-auto pr-1">
           {messages.map(message => (
             <div key={message.id} className={['flex flex-col', message.role === 'user' ? 'items-end' : 'items-start'].join(' ')}>
