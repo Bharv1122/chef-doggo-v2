@@ -29,12 +29,6 @@ const BATCH_DURATION_OPTIONS: Array<{ value: BatchDuration; label: string; days:
   { value: '7day', label: '7 days', days: 7 },
 ];
 
-function getBatchDays(recipe: Recipe): number {
-  const dailyCups = Math.max(0.1, recipe.serving.cupsPerMeal * recipe.serving.mealsPerDay);
-  const totalCups = recipe.batch.totalYieldGrams / 240;
-  return totalCups / dailyCups;
-}
-
 function getSubstitutions(recipe: Recipe): Array<{ from: string; to: string }> {
   return recipe.ingredients
     .slice(0, 3)

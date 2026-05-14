@@ -117,7 +117,6 @@ function stripThoughtBlocks(text: string): string {
 // cooking steps. This is loose on purpose — false positives just mean the user
 // gets a Save button on something that won't extract well, which they can ignore.
 export function looksLikeRecipe(text: string): boolean {
-  const lower = text.toLowerCase();
   const hasIngredientsHeader = /\bingredients?\s*[:\n]/i.test(text);
   const hasInstructionsHeader = /\b(instructions?|steps|directions|preparation)\b\s*[:\n]/i.test(text);
   const numberedSteps = (text.match(/^\s*\d+[.)]\s+\S/gm) ?? []).length;
@@ -181,7 +180,6 @@ function coerceGrams(value: unknown): number | null {
 // language chat text using regex. Used when the LLM extract call returns
 // nothing usable. Conservative on purpose — returns null unless it finds an
 // Ingredients section with at least one parseable amount and a few steps.
-const SECTION_HEADER_RE = /^\s*(?:[#*_]+\s*)?(ingredients?|instructions?|directions?|steps?|preparation|method|supplements?|notes?|tips?|storage|nutrition)\s*[:*_]*\s*$/i;
 const INGREDIENT_AMOUNT_RE = /(\d+(?:\.\d+)?(?:\/\d+)?|\d*\s*½|\d*\s*¼|\d*\s*¾)\s*(g(?:rams?)?|oz|ounces?|lb|lbs|pounds?|cups?|tbsp|tablespoons?|tsp|teaspoons?)\b/i;
 
 function fractionToNumber(value: string): number {
@@ -197,7 +195,7 @@ function fractionToNumber(value: string): number {
 
 function parseIngredientLine(raw: string): ParsedChatRecipe['ingredients'][number] | null {
   // Strip leading list markers (-, *, •, numbers) and bold/italic markdown
-  let line = raw
+  const line = raw
     .replace(/^\s*[-*•]+\s*/, '')
     .replace(/^\s*\d+[.)]\s*/, '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
@@ -238,7 +236,7 @@ function parseIngredientLine(raw: string): ParsedChatRecipe['ingredients'][numbe
 // Looser section detector — matches headers like "**Ingredients:**",
 // "## Ingredients", "🥩 Ingredients (one-day amounts):", "Instructions:" at the
 // start of a line, regardless of trailing parenthetical or emoji prefix.
-const SECTION_HEADER_LOOSE_RE = /^[\s>#*_•\-]*[^\w]*\b(ingredients?|instructions?|directions?|steps?|preparation|method|supplements?|notes?|tips?|storage|nutrition|disclaimers?|safety|substitutions?|tools?|equipment|shopping)\b[\s:*_()\-—]*/i;
+const SECTION_HEADER_LOOSE_RE = /^[\s>#*_•-]*[^\w]*\b(ingredients?|instructions?|directions?|steps?|preparation|method|supplements?|notes?|tips?|storage|nutrition|disclaimers?|safety|substitutions?|tools?|equipment|shopping)\b[\s:*_()\-—]*/i;
 // Sections whose body should NOT be treated as ingredient lines.
 const SKIP_SECTIONS = new Set(['supplements', 'supplement', 'notes', 'note', 'tips', 'tip', 'storage', 'nutrition', 'disclaimer', 'disclaimers', 'safety', 'tools', 'equipment', 'shopping']);
 
