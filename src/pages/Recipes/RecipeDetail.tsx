@@ -479,6 +479,8 @@ export default function RecipeDetailPage() {
               />
             </div>
             <button
+              type="button"
+              aria-pressed={recipe.isFavorite}
               className={[
                 'mt-3 rounded-full px-4 py-1 text-sm font-semibold',
                 recipe.isFavorite ? 'bg-[#f97316] text-white' : 'bg-[#fff4ea] text-[#f97316]',

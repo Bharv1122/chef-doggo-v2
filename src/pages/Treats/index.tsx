@@ -129,6 +129,8 @@ export default function TreatsPage() {
           {TABS.map(tab => (
             <button
               key={tab.key}
+              type="button"
+              aria-pressed={tab.key === activeTab}
               className={[
                 'rounded-xl px-4 py-2 text-sm font-semibold',
                 tab.key === activeTab ? 'bg-[#fff0de] text-[#f97316]' : 'text-[#7d7268] hover:bg-[#fff8ef]',
