@@ -329,9 +329,38 @@ export default function RecipeDetailPage() {
   }
 
   const showMetric = unitPreference === 'metric';
-  const ingredients = recipe.ingredients.map(ingredient => formatIngredientByPreference(ingredient, unitPreference));
+
+  // Active batch — driven by the modal's day toggle. Changing the duration
+  // scales ingredient quantities + shopping list amounts on the fly without
+  // mutating the saved recipe (the underlying recipe.ingredients are
+  // untouched; we derive scaled copies for display).
+  const selectedBatch = calcBatch(recipe.serving, batchDuration);
+  const selectedBatchCups = Math.round((selectedBatch.totalYieldGrams / 240) * 10) / 10;
+  const selectedBatchDays =
+    BATCH_DURATION_OPTIONS.find(option => option.value === batchDuration)?.days ?? 1;
+  const scaleFactor = recipe.batch.totalYieldGrams > 0
+    ? selectedBatch.totalYieldGrams / recipe.batch.totalYieldGrams
+    : 1;
+  const isScaled = Math.abs(scaleFactor - 1) > 0.01;
+
+  const scaledIngredients: RecipeIngredient[] = isScaled
+    ? recipe.ingredients.map(ingredient => ({
+        ...ingredient,
+        amountGrams: ingredient.amountGrams * scaleFactor,
+        amountCups: ingredient.amountCups !== undefined ? ingredient.amountCups * scaleFactor : undefined,
+        amountOz: ingredient.amountOz !== undefined ? ingredient.amountOz * scaleFactor : undefined,
+        amountMl: ingredient.amountMl !== undefined ? ingredient.amountMl * scaleFactor : undefined,
+        // Drop pre-baked display strings so the formatter recomputes from the
+        // scaled amounts instead of returning the original-batch text.
+        displayMetric: undefined,
+        displayVolume: undefined,
+        groceryFriendlyAmount: groceryLabel(ingredient.amountGrams * scaleFactor, ingredient.name),
+      }))
+    : recipe.ingredients;
+
+  const ingredients = scaledIngredients.map(ingredient => formatIngredientByPreference(ingredient, unitPreference));
   const instructions = recipe.instructions.map(step => step.instruction);
-  const ingredientByName = new Map(recipe.ingredients.map(item => [item.name, item]));
+  const ingredientByName = new Map(scaledIngredients.map(item => [item.name, item]));
   const allergenSafety = recipe.allergenSafety;
   const derivedMatchedIngredients = findIngredientMatchesByTerms(recipe, allergenSafety?.checkedTerms ?? []);
   const hasAllergenWarning = allergenSafety?.allergenFree === false || derivedMatchedIngredients.length > 0;
@@ -347,26 +376,22 @@ export default function RecipeDetailPage() {
       ? formatIngredientByPreference(fallbackIngredient, unitPreference)
       : item.displayAmount;
 
-    return formatShoppingItem(item, fallback, showMetric);
+    // When scaled, the saved display strings reflect the original batch, so
+    // strip them and let formatShoppingItem use the recomputed fallback.
+    const effectiveItem = isScaled && fallbackIngredient
+      ? { ...item, displayAmount: fallback, displayAmountMetric: undefined, displayAmountVolume: undefined }
+      : item;
+    return formatShoppingItem(effectiveItem, fallback, showMetric);
   });
 
-  const batchYieldCups = Math.round((recipe.batch.totalYieldGrams / 240) * 10) / 10;
   const prepTime = recipe.instructions.find(s => s.stepNumber === 1)?.durationMinutes ?? 15;
   const cookTime = recipe.instructions.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0) || 35;
   const dailyCups = Math.max(0.1, recipe.serving.cupsPerMeal * recipe.serving.mealsPerDay);
 
-  // Batch modal: user-selected duration, recomputed live so they can compare
-  // 1/3/7-day batches without changing the saved recipe.
-  const selectedBatch = calcBatch(recipe.serving, batchDuration);
-  const selectedBatchCups = Math.round((selectedBatch.totalYieldGrams / 240) * 10) / 10;
-  const selectedBatchDays =
-    BATCH_DURATION_OPTIONS.find(option => option.value === batchDuration)?.days ?? 1;
-
   const isBatch = recipe.type === 'batch_week';
-  const batchDays = isBatch ? getBatchDays(recipe) : 0;
   const batchLabel = isBatch
-    ? `${batchYieldCups} cups (~${batchDays.toFixed(1)} days)`
-    : `${batchYieldCups} cups`;
+    ? `${selectedBatchCups} cups (~${selectedBatchDays} day${selectedBatchDays === 1 ? '' : 's'})`
+    : `${selectedBatchCups} cups`;
 
   return (
     <AppShell
@@ -602,10 +627,10 @@ export default function RecipeDetailPage() {
                 type="button"
                 onClick={() => setIsBatchOpen(true)}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-[#f2c8a0] bg-[#fff7ee] px-3 py-1.5 text-xs font-semibold text-[#a16b38] transition-colors hover:bg-[#fff1df] sm:text-sm"
-                title="View batch portions"
+                title="Pick a batch size — ingredient amounts scale to match"
               >
                 <Package size={14} />
-                Batch
+                Batch · {selectedBatchDays} day{selectedBatchDays === 1 ? '' : 's'}
               </button>
             </div>
           </div>
@@ -645,7 +670,7 @@ export default function RecipeDetailPage() {
           <p className="mt-1 text-sm text-[#6f6459]">{recipe.storage.thawInstructions}</p>
           {isBatch && (
             <p className="mt-2 text-sm font-medium text-[#f97316]">
-              🧊 This batch makes {batchYieldCups} cups (~{batchDays.toFixed(1)} days at {dailyCups.toFixed(1)} cups/day).
+              🧊 This batch makes {selectedBatchCups} cups (~{selectedBatchDays} day{selectedBatchDays === 1 ? '' : 's'} at {dailyCups.toFixed(1)} cups/day).
             </p>
           )}
         </article>
