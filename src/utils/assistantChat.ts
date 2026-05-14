@@ -329,9 +329,22 @@ export async function chatWithAssistant({
 
 // Second-pass extraction: takes an assistant message that looks like a recipe
 // and asks the LLM to convert it to our structured JSON shape. Returns null if
-// the model produced unparseable output or there's no API key configured.
+// the model produced unparseable output, the request timed out, or there's no
+// API key configured.
+const EXTRACT_TIMEOUT_MS = 30_000;
+const EXTRACT_INPUT_MAX_CHARS = 4000;
+
 export async function extractRecipeFromText(recipeText: string): Promise<ParsedChatRecipe | null> {
   if (!API_KEY) return null;
+
+  // Cap input length so a runaway-long chat reply doesn't push the extract
+  // call past the model's context or stall it for minutes.
+  const trimmedInput = recipeText.length > EXTRACT_INPUT_MAX_CHARS
+    ? `${recipeText.slice(0, EXTRACT_INPUT_MAX_CHARS)}\n…[truncated]`
+    : recipeText;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EXTRACT_TIMEOUT_MS);
 
   try {
     const response = await fetch(`${BASE_URL}/chat/completions`, {
@@ -344,11 +357,13 @@ export async function extractRecipeFromText(recipeText: string): Promise<ParsedC
         model: MODEL,
         messages: [
           { role: 'system', content: EXTRACT_RECIPE_PROMPT },
-          { role: 'user', content: recipeText },
+          { role: 'user', content: trimmedInput },
         ],
         temperature: 0,
-        max_tokens: 1200,
+        max_tokens: 800,
+        response_format: { type: 'json_object' },
       }),
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -369,7 +384,13 @@ export async function extractRecipeFromText(recipeText: string): Promise<ParsedC
     }
     return normalized;
   } catch (error) {
-    console.error('[assistantChat] recipe extraction failed', error);
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      console.warn('[assistantChat] recipe extraction timed out after', EXTRACT_TIMEOUT_MS, 'ms');
+    } else {
+      console.error('[assistantChat] recipe extraction failed', error);
+    }
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }

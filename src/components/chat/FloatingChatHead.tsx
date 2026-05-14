@@ -28,6 +28,7 @@ export function FloatingChatHead() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [extractingForId, setExtractingForId] = useState<string | null>(null);
   const [savingRecipeForId, setSavingRecipeForId] = useState<string | null>(null);
   const [saveErrorForId, setSaveErrorForId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -83,13 +84,14 @@ export function FloatingChatHead() {
   }
 
   async function handleSaveRecipe(message: ChatMessage) {
-    if (!activeProfile || savingRecipeForId) return;
-    setSavingRecipeForId(message.id);
+    if (!activeProfile || extractingForId || savingRecipeForId) return;
     setSaveErrorForId(null);
     try {
       let parsed = message.parsedRecipe;
       if (!parsed) {
+        setExtractingForId(message.id);
         parsed = (await extractRecipeFromText(message.content)) ?? undefined;
+        setExtractingForId(null);
         if (!parsed) {
           setSaveErrorForId(message.id);
           return;
@@ -98,6 +100,7 @@ export function FloatingChatHead() {
           prev.map(m => (m.id === message.id ? { ...m, parsedRecipe: parsed } : m))
         );
       }
+      setSavingRecipeForId(message.id);
       const recipe = recipeFromChatJson(parsed, activeProfile);
       const saved = await saveRecipe(recipe);
       setMessages(prev =>
@@ -107,6 +110,7 @@ export function FloatingChatHead() {
       console.error('[FloatingChatHead] saveRecipe failed', error);
       setSaveErrorForId(message.id);
     } finally {
+      setExtractingForId(null);
       setSavingRecipeForId(null);
     }
   }
@@ -206,12 +210,16 @@ export function FloatingChatHead() {
                     <button
                       type="button"
                       onClick={() => void handleSaveRecipe(message)}
-                      disabled={!activeProfile || savingRecipeForId === message.id}
+                      disabled={!activeProfile || extractingForId === message.id || savingRecipeForId === message.id}
                       className="inline-flex items-center gap-1.5 rounded-full border border-[#f2c8a0] bg-[#fff7ee] px-2.5 py-1 text-xs font-semibold text-[#a16b38] hover:bg-[#fff1df] disabled:cursor-not-allowed disabled:opacity-60"
                       title={activeProfile ? 'Save this recipe to your list' : 'Add a dog profile first to save recipes'}
                     >
                       <BookmarkPlus size={12} />
-                      {savingRecipeForId === message.id ? 'Saving…' : 'Save to my recipes'}
+                      {extractingForId === message.id
+                        ? 'Extracting…'
+                        : savingRecipeForId === message.id
+                        ? 'Saving…'
+                        : 'Save to my recipes'}
                     </button>
                     {saveErrorForId === message.id && (
                       <p className="mt-1 text-[11px] text-[#b46251]">
