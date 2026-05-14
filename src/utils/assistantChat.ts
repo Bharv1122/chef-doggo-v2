@@ -165,6 +165,139 @@ function coerceGrams(value: unknown): number | null {
   return Math.round(n); // assume grams when no unit is given
 }
 
+// Heuristic fallback extractor: parses a recipe directly out of natural-
+// language chat text using regex. Used when the LLM extract call returns
+// nothing usable. Conservative on purpose — returns null unless it finds an
+// Ingredients section with at least one parseable amount and a few steps.
+const SECTION_HEADER_RE = /^\s*(?:[#*_]+\s*)?(ingredients?|instructions?|directions?|steps?|preparation|method|supplements?|notes?|tips?|storage|nutrition)\s*[:*_]*\s*$/i;
+const INGREDIENT_AMOUNT_RE = /(\d+(?:\.\d+)?(?:\/\d+)?|\d*\s*½|\d*\s*¼|\d*\s*¾)\s*(g(?:rams?)?|oz|ounces?|lb|lbs|pounds?|cups?|tbsp|tablespoons?|tsp|teaspoons?)\b/i;
+
+function fractionToNumber(value: string): number {
+  if (value.includes('½')) return parseFloat(value.replace('½', '').trim() || '0') + 0.5;
+  if (value.includes('¼')) return parseFloat(value.replace('¼', '').trim() || '0') + 0.25;
+  if (value.includes('¾')) return parseFloat(value.replace('¾', '').trim() || '0') + 0.75;
+  if (value.includes('/')) {
+    const [num, den] = value.split('/').map(s => parseFloat(s.trim()));
+    if (Number.isFinite(num) && Number.isFinite(den) && den !== 0) return num / den;
+  }
+  return parseFloat(value);
+}
+
+function parseIngredientLine(raw: string): ParsedChatRecipe['ingredients'][number] | null {
+  // Strip leading list markers (-, *, •, numbers) and bold/italic markdown
+  let line = raw
+    .replace(/^\s*[-*•]+\s*/, '')
+    .replace(/^\s*\d+[.)]\s*/, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/[*_`]/g, '')
+    .trim();
+  if (!line) return null;
+
+  const amountMatch = line.match(INGREDIENT_AMOUNT_RE);
+  if (!amountMatch) return null;
+  const qty = fractionToNumber(amountMatch[1]);
+  if (!Number.isFinite(qty) || qty <= 0) return null;
+  const unit = amountMatch[2].toLowerCase();
+  const grams = coerceGrams(`${qty} ${unit}`);
+  if (!grams) return null;
+
+  // Strip the amount itself from the line — whatever's left is name + prep note.
+  let rest = (line.slice(0, amountMatch.index) + line.slice(amountMatch.index! + amountMatch[0].length))
+    .replace(/[():,-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!rest) return null;
+
+  // If the line has a "Name: amount …" pattern, the label before the colon was
+  // likely the ingredient name; take it cleanly.
+  const labelMatch = raw.match(/^\s*(?:[-*•]+\s*)?\*?\*?([^:*]+?)\*?\*?\s*:\s/);
+  if (labelMatch && labelMatch[1].trim().length < 60) {
+    rest = labelMatch[1].trim();
+  }
+
+  // Drop common preamble words leftover from things like "of chicken breast".
+  rest = rest.replace(/^(?:of|the|a|an)\s+/i, '').trim();
+  if (rest.length < 2) return null;
+
+  return { name: rest, grams };
+}
+
+function heuristicExtractRecipe(text: string): ParsedChatRecipe | null {
+  const lines = text.split(/\r?\n/);
+
+  // Locate section headers by line index.
+  type SectionRange = { name: string; start: number; end: number };
+  const sections: SectionRange[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(SECTION_HEADER_RE);
+    if (m) sections.push({ name: m[1].toLowerCase(), start: i + 1, end: lines.length });
+  }
+  for (let i = 0; i < sections.length - 1; i++) sections[i].end = sections[i + 1].start - 1;
+
+  const ingredientsSection = sections.find(s => /^ingredient/.test(s.name));
+  if (!ingredientsSection) return null;
+
+  const ingredients: ParsedChatRecipe['ingredients'] = [];
+  for (let i = ingredientsSection.start; i < ingredientsSection.end; i++) {
+    const parsed = parseIngredientLine(lines[i]);
+    if (parsed) ingredients.push(parsed);
+  }
+  if (ingredients.length < 2) return null;
+
+  const stepsSection = sections.find(s => /^(instructions?|directions?|steps?|preparation|method)$/.test(s.name));
+  const instructions: string[] = [];
+  if (stepsSection) {
+    for (let i = stepsSection.start; i < stepsSection.end; i++) {
+      const raw = lines[i].trim();
+      if (!raw) continue;
+      const stripped = raw
+        .replace(/^\s*\d+[.)]\s*/, '')
+        .replace(/^\s*[-*•]+\s*/, '')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/__([^_]+)__/g, '$1')
+        .trim();
+      if (stripped.length > 4) instructions.push(stripped);
+    }
+  } else {
+    // Fall back to any numbered lines in the document.
+    for (const line of lines) {
+      const m = line.match(/^\s*\d+[.)]\s+(.+\S)\s*$/);
+      if (m) instructions.push(m[1].trim());
+    }
+  }
+  if (instructions.length < 2) return null;
+
+  // Pull a plausible name out of the first heading or bolded title line.
+  let name = '';
+  for (const line of lines) {
+    const heading = line.match(/^\s*#+\s+(.+)$/);
+    if (heading) { name = heading[1].trim(); break; }
+    const bolded = line.match(/^\s*\*\*([^*]+)\*\*\s*$/);
+    if (bolded) { name = bolded[1].trim(); break; }
+  }
+  if (!name) name = 'Chef Doggo Recipe';
+  name = name.replace(/[*_#]/g, '').trim().slice(0, 80);
+
+  // Type guess: a 7-day batch text tends to mention "week", "batch", or "7 days".
+  const lower = text.toLowerCase();
+  const type: ParsedChatRecipe['type'] = /week|7\s*days?|batch/.test(lower)
+    ? 'batch_week'
+    : /topper/.test(lower)
+    ? 'topper'
+    : /treat/.test(lower)
+    ? 'treat'
+    : 'full_meal';
+
+  return {
+    name,
+    description: `${name} — saved from a Chef Doggo chat suggestion.`,
+    type,
+    ingredients,
+    instructions,
+  };
+}
+
 // Normalize whatever the extract LLM returned into our `ParsedChatRecipe`
 // shape. More forgiving than a strict type-check: coerces string grams, accepts
 // missing `description`, defaults `type`, and drops only the unparseable
@@ -361,35 +494,33 @@ export async function extractRecipeFromText(recipeText: string): Promise<ParsedC
         ],
         temperature: 0,
         max_tokens: 800,
-        response_format: { type: 'json_object' },
       }),
       signal: controller.signal,
     });
 
     if (!response.ok) {
       console.warn('[assistantChat] extract call failed', response.status, await response.text());
-      return null;
+      return heuristicExtractRecipe(recipeText);
     }
     const data = (await response.json()) as OpenAIChatResponse;
     const raw = data.choices?.[0]?.message?.content?.trim();
     if (!raw) {
-      console.warn('[assistantChat] extract call returned empty content');
-      return null;
+      console.warn('[assistantChat] extract call returned empty content — falling back to regex');
+      return heuristicExtractRecipe(recipeText);
     }
     const cleaned = stripThoughtBlocks(raw);
     const parsed = tryParseJsonObject(cleaned);
     const normalized = normalizeParsedRecipe(parsed);
-    if (!normalized) {
-      console.warn('[assistantChat] could not normalize parsed JSON; raw model output:', raw);
-    }
-    return normalized;
+    if (normalized) return normalized;
+    console.warn('[assistantChat] could not normalize parsed JSON; falling back to regex. raw model output:', raw);
+    return heuristicExtractRecipe(recipeText);
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      console.warn('[assistantChat] recipe extraction timed out after', EXTRACT_TIMEOUT_MS, 'ms');
+      console.warn('[assistantChat] recipe extraction timed out — falling back to regex');
     } else {
-      console.error('[assistantChat] recipe extraction failed', error);
+      console.error('[assistantChat] recipe extraction failed — falling back to regex', error);
     }
-    return null;
+    return heuristicExtractRecipe(recipeText);
   } finally {
     clearTimeout(timeout);
   }
