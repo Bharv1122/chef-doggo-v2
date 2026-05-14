@@ -309,8 +309,12 @@ function heuristicExtractRecipe(text: string): ParsedChatRecipe | null {
   }
 
   // Pull a plausible name out of the first heading or bolded title line.
+  // Skip lines that match a section header (Ingredients / Instructions / etc.)
+  // so the title doesn't end up as "Ingredients:" when the model goes
+  // straight from an intro paragraph into the structured sections.
   let name = '';
   for (const line of lines) {
+    if (classifyHeader(line)) continue;
     const heading = line.match(/^\s*#+\s+(.+)$/);
     if (heading) { name = heading[1].trim(); break; }
     const bolded = line.match(/^\s*\*\*([^*]+)\*\*\s*$/);
