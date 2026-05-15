@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build && npm run verify:audit-bundle",
     "lint": "eslint .",
     "preview": "vite preview",
-    "verify:audit-bundle": "node scripts/verify-audit-bundle.mjs"
+    "verify:audit-bundle": "node scripts/verify-audit-bundle.mjs",
+    "verify:recipe-detail-batch-default": "node scripts/verify-recipe-detail-batch-default.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.1",

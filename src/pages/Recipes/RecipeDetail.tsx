@@ -208,9 +208,7 @@ export default function RecipeDetailPage() {
   const dogProfile = recipe ? getProfile(recipe.dogProfileId) : undefined;
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [isBatchOpen, setIsBatchOpen] = useState(false);
-  const [batchDuration, setBatchDuration] = useState<BatchDuration>(
-    recipe?.batch.usedFor ?? '7day'
-  );
+  const [batchDuration, setBatchDuration] = useState<BatchDuration>('1day');
   const [draftIngredients, setDraftIngredients] = useState<RecipeIngredient[]>([]);
   const [customizeError, setCustomizeError] = useState<string | null>(null);
   const [customizeSuccess, setCustomizeSuccess] = useState<string | null>(null);
