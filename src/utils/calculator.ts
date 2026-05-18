@@ -157,7 +157,8 @@ function formatFractional(value: number, unit: string): string {
     0.75: '¾',
   };
 
-  const suffix = rounded === 1 ? unit : `${unit}s`;
+  // Singular for anything up to one unit ("¼ cup", "1 cup"); plural beyond.
+  const suffix = rounded <= 1 ? unit : `${unit}s`;
 
   if (!whole && fractionMap[fraction]) return `${fractionMap[fraction]} ${suffix}`;
   if (!fraction) return `${whole} ${suffix}`;
