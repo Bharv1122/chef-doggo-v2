@@ -13,7 +13,7 @@ import type {
   ShoppingListItem,
 } from '../types/recipe';
 import { calcBatch, calcServing, gramsToCups, groceryLabel } from './calculator';
-import { GENERAL_VET_DISCLAIMER } from './safetyValidator';
+import { GENERAL_VET_DISCLAIMER, validateIngredients } from './safetyValidator';
 import { generateId } from './storage';
 
 const CATEGORY_KEYWORDS: Array<{ category: IngredientCategory; words: string[] }> = [
@@ -48,6 +48,13 @@ function slugifyName(name: string): string {
 }
 
 const REFERENCE_DAILY_GRAMS = 350; // rough ballpark for a 30-lb adult dog at moderate activity
+
+// Safety gate for chat-extracted recipes: the "Ask Chef" chat generates recipes
+// with the LLM, so they must clear the deterministic validator before saving.
+// Returns blocking error messages — an empty array means safe to save.
+export function validateChatRecipe(parsed: ParsedChatRecipe, dog: DogProfile): string[] {
+  return validateIngredients(parsed.ingredients.map(ing => ing.name), dog).errors;
+}
 
 export function recipeFromChatJson(parsed: ParsedChatRecipe, dogProfile: DogProfile): Recipe {
   const serving = calcServing(dogProfile);

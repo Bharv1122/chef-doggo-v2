@@ -9,7 +9,7 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useRecipes } from '../../hooks/useRecipes';
 import { useAuth } from '../../contexts/AuthContext';
 import { chatWithAssistant, extractRecipeFromText, looksLikeRecipe } from '../../utils/assistantChat';
-import { recipeFromChatJson } from '../../utils/chatRecipeConverter';
+import { recipeFromChatJson, validateChatRecipe } from '../../utils/chatRecipeConverter';
 import { generateId } from '../../utils/storage';
 import type { ChatMessage } from '../../types/assistant';
 
@@ -29,6 +29,9 @@ const STARTER_CHAT: ChatMessage[] = [
   },
 ];
 
+const EXTRACT_FAIL_MESSAGE =
+  "Couldn't extract a clean recipe. Try asking Chef Doggo to list ingredients with amounts in grams.";
+
 export default function AssistantPage() {
   const { activeProfile } = useDogProfiles();
   const { user } = useAuth();
@@ -39,7 +42,7 @@ export default function AssistantPage() {
   const [loading, setLoading] = useState(false);
   const [extractingForId, setExtractingForId] = useState<string | null>(null);
   const [savingRecipeForId, setSavingRecipeForId] = useState<string | null>(null);
-  const [saveErrorForId, setSaveErrorForId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<{ id: string; message: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -96,12 +99,12 @@ export default function AssistantPage() {
     const confirmed = window.confirm('Clear all messages with Chef Doggo? Saved recipes are unaffected — only this conversation will be cleared.');
     if (!confirmed) return;
     setMessages([]);
-    setSaveErrorForId(null);
+    setSaveError(null);
   }
 
   async function handleSaveRecipe(message: ChatMessage) {
     if (!activeProfile || extractingForId || savingRecipeForId) return;
-    setSaveErrorForId(null);
+    setSaveError(null);
     try {
       let parsed = message.parsedRecipe;
       if (!parsed) {
@@ -109,13 +112,23 @@ export default function AssistantPage() {
         parsed = (await extractRecipeFromText(message.content)) ?? undefined;
         setExtractingForId(null);
         if (!parsed) {
-          setSaveErrorForId(message.id);
+          setSaveError({ id: message.id, message: EXTRACT_FAIL_MESSAGE });
           return;
         }
         setMessages(prev =>
           prev.map(m => (m.id === message.id ? { ...m, parsedRecipe: parsed } : m))
         );
       }
+
+      const safetyErrors = validateChatRecipe(parsed, activeProfile);
+      if (safetyErrors.length > 0) {
+        setSaveError({
+          id: message.id,
+          message: `This recipe can't be saved for ${activeProfile.name}: ${safetyErrors.join(' ')}`,
+        });
+        return;
+      }
+
       setSavingRecipeForId(message.id);
       const recipe = recipeFromChatJson(parsed, activeProfile);
       const saved = await saveRecipe(recipe);
@@ -124,7 +137,7 @@ export default function AssistantPage() {
       );
     } catch (error) {
       console.error('[AssistantPage] saveRecipe failed', error);
-      setSaveErrorForId(message.id);
+      setSaveError({ id: message.id, message: EXTRACT_FAIL_MESSAGE });
     } finally {
       setExtractingForId(null);
       setSavingRecipeForId(null);
@@ -281,9 +294,9 @@ export default function AssistantPage() {
                           ? 'Saving…'
                           : 'Save to my recipes'}
                       </button>
-                      {saveErrorForId === message.id && (
+                      {saveError && saveError.id === message.id && (
                         <p className="mt-1 text-[11px] text-[#b46251]">
-                          Couldn't extract a clean recipe. Try asking Chef Doggo to list ingredients with amounts in grams.
+                          {saveError.message}
                         </p>
                       )}
                     </>
