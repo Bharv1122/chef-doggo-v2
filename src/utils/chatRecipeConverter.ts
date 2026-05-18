@@ -16,12 +16,16 @@ import { calcBatch, calcServing, gramsToCups, groceryLabel } from './calculator'
 import { GENERAL_VET_DISCLAIMER, validateIngredients } from './safetyValidator';
 import { generateId } from './storage';
 
+// Order matters: guessCategory returns the first category whose keyword
+// substring-matches, so the specific categories must precede `protein`.
+// Otherwise the broad protein keywords "egg" and "fish" swallow "eggshell
+// powder" (a supplement) and "fish oil" (a fat/supplement).
 const CATEGORY_KEYWORDS: Array<{ category: IngredientCategory; words: string[] }> = [
-  { category: 'protein', words: ['chicken', 'turkey', 'beef', 'lamb', 'pork', 'fish', 'salmon', 'tuna', 'sardine', 'whitefish', 'venison', 'egg', 'liver', 'heart'] },
-  { category: 'carb', words: ['rice', 'oat', 'quinoa', 'barley', 'potato', 'sweet potato', 'pumpkin', 'pasta', 'noodle'] },
-  { category: 'vegetable', words: ['carrot', 'broccoli', 'spinach', 'kale', 'pea', 'green bean', 'zucchini', 'cucumber', 'celery', 'lettuce', 'cabbage', 'blueberry', 'apple', 'banana'] },
-  { category: 'fat', words: ['oil', 'butter', 'fat', 'tallow', 'coconut oil', 'olive oil', 'fish oil'] },
   { category: 'supplement', words: ['eggshell', 'calcium', 'vitamin', 'omega', 'glucosamine', 'chondroitin', 'probiotic', 'multivitamin'] },
+  { category: 'fat', words: ['oil', 'butter', 'fat', 'tallow', 'coconut oil', 'olive oil', 'fish oil'] },
+  { category: 'vegetable', words: ['carrot', 'broccoli', 'spinach', 'kale', 'pea', 'green bean', 'zucchini', 'cucumber', 'celery', 'lettuce', 'cabbage', 'blueberry', 'apple', 'banana'] },
+  { category: 'carb', words: ['rice', 'oat', 'quinoa', 'barley', 'potato', 'sweet potato', 'pumpkin', 'pasta', 'noodle'] },
+  { category: 'protein', words: ['chicken', 'turkey', 'beef', 'lamb', 'pork', 'fish', 'salmon', 'tuna', 'sardine', 'whitefish', 'venison', 'egg', 'liver', 'heart'] },
 ];
 
 function guessCategory(name: string): IngredientCategory {
