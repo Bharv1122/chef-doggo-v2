@@ -29,27 +29,6 @@ const BATCH_DURATION_OPTIONS: Array<{ value: BatchDuration; label: string; days:
   { value: '7day', label: '7 days', days: 7 },
 ];
 
-function getSubstitutions(recipe: Recipe): Array<{ from: string; to: string }> {
-  return recipe.ingredients
-    .slice(0, 3)
-    .map(ingredient => {
-      const source = getIngredientById(ingredient.ingredientId);
-      if (!source?.possibleSwaps?.length) {
-        return null;
-      }
-
-      const swapLabels = source.possibleSwaps
-        .map(swapId => getIngredientById(swapId)?.name)
-        .filter(Boolean)
-        .slice(0, 2)
-        .join(' or ');
-
-      if (!swapLabels) return null;
-      return { from: source.name, to: swapLabels };
-    })
-    .filter((item): item is { from: string; to: string } => Boolean(item));
-}
-
 // AAFCO adult maintenance minimums on a calorie basis (calories from macro / total).
 // Puppies (and pregnant/lactating) need higher protein + fat; we surface a note
 // rather than block, since recipe generation already handles life-stage upstream.
@@ -214,7 +193,6 @@ export default function RecipeDetailPage() {
 
   // useMemo dropped intentionally — React Compiler auto-memoizes, and the manual
   // useMemo here triggered its preserve-manual-memoization warning on `recipe`.
-  const substitutions = recipe ? getSubstitutions(recipe) : [];
   const nutrition = recipe ? getNutritionBreakdown(recipe) : null;
   const aafco = nutrition ? evaluateAafco(nutrition, dogProfile?.lifeStage ?? 'adult') : null;
 
@@ -636,7 +614,7 @@ export default function RecipeDetailPage() {
         </article>
       </section>
 
-      <section className="mt-4 grid gap-4 lg:grid-cols-2">
+      <section className="mt-4">
         <article className="doggo-card p-5">
           <h3 className="text-[1.2rem] font-semibold">Storage Instructions</h3>
           <p className="mt-2 text-sm text-[#6f6459]">Refrigerator: store in an airtight container up to {recipe.storage.fridgeDays} days.</p>
@@ -647,17 +625,6 @@ export default function RecipeDetailPage() {
               🧊 This batch makes {selectedBatchCups} cups (~{selectedBatchDays} day{selectedBatchDays === 1 ? '' : 's'} at {dailyCups.toFixed(1)} cups/day).
             </p>
           )}
-        </article>
-
-        <article className="doggo-card p-5">
-          <h3 className="text-[1.2rem] font-semibold">Substitution Suggestions</h3>
-          <div className="mt-3 space-y-2 text-sm text-[#6f6459]">
-            {substitutions.length > 0 ? substitutions.map(item => (
-              <div key={item.from} className="rounded-xl border border-[#eadfce] bg-white p-2">{item.from} → {item.to}</div>
-            )) : (
-              <p className="text-sm text-[#8b8378]">No substitutions available for this recipe yet.</p>
-            )}
-          </div>
         </article>
       </section>
 
