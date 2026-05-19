@@ -46,7 +46,7 @@ function DogProfileBlock({
       <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
         <div className="rounded-2xl border border-[#eadfce] bg-white p-4">
           <div className="flex items-start gap-4">
-            <img src="/chef-doggo-logo.webp" alt={dog.name} className="h-32 w-32 rounded-3xl border border-[#eadfce] bg-[#fff4ea] object-contain p-2" />
+            <img src="/cheffo-doggo-logo.png" alt={dog.name} className="h-32 w-32 rounded-3xl border border-[#eadfce] bg-[#fff4ea] object-contain p-2" />
             <div className="min-w-0">
               <h3 className="text-[1.8rem] font-semibold">{dog.name} <span className="text-lg">⭐</span></h3>
               <p className="text-[#7f7469]">{dog.breed} · {ageLabel(dog)}</p>
@@ -220,7 +220,7 @@ export default function DogProfilesPage() {
       )}
 
       <section className="mt-4 doggo-soft-card grid items-center gap-3 p-4 sm:grid-cols-[220px_1fr_340px]">
-        <img src="/chef-doggo-logo.webp" alt="Cheffo Doggo mascot" className="mx-auto h-40 w-40 object-contain" />
+        <img src="/cheffo-doggo-logo.png" alt="Cheffo Doggo mascot" className="mx-auto h-40 w-40 object-contain" />
         <div>
           <h3 className="text-[1.4rem] font-semibold">Cheffo Doggo is here for you!</h3>
           <p className="mt-1 text-sm text-[#7f7469]">Every dog is unique, and I'm here to help you create meals that are safe, balanced, and made with love.</p>

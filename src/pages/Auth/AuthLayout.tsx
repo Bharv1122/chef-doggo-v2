@@ -26,7 +26,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
 
             <div className="mt-8 rounded-3xl border border-[#eadfce] bg-white/80 p-4">
               <img
-                src="/chef-doggo-logo.webp"
+                src="/cheffo-doggo-logo.png"
                 alt="Cheffo Doggo mascot"
                 className="mx-auto h-44 w-44 object-contain sm:h-52 sm:w-52"
               />

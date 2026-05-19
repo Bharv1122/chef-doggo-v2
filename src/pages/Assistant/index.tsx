@@ -161,7 +161,7 @@ export default function AssistantPage() {
             {activeProfile ? (
               <div className="mt-3 rounded-2xl border border-[#eadfce] bg-white p-3">
                 <div className="flex items-center gap-3">
-                  <img src="/chef-doggo-logo.webp" alt="Dog" className="h-16 w-16 rounded-full border border-[#eadfce] object-contain" />
+                  <img src="/cheffo-doggo-logo.png" alt="Dog" className="h-16 w-16 rounded-full border border-[#eadfce] object-contain" />
                   <div>
                     <p className="font-semibold">{activeProfile.name}</p>
                     <p className="text-sm text-[#7f7469]">
@@ -232,7 +232,7 @@ export default function AssistantPage() {
               AI Assistant · Always here to help
             </div>
           </div>
-          <img src="/chef-doggo-logo.webp" alt="Cheffo Doggo mascot" className="mx-auto h-48 w-48 object-contain" />
+          <img src="/cheffo-doggo-logo.png" alt="Cheffo Doggo mascot" className="mx-auto h-48 w-48 object-contain" />
         </div>
       </section>
 

@@ -112,7 +112,7 @@ export default function TreatsPage() {
               <span>✅ Vet-informed</span>
             </div>
           </div>
-          <img src="/chef-doggo-logo.webp" alt="Cheffo Doggo mascot" className="mx-auto h-56 w-56 object-contain" />
+          <img src="/cheffo-doggo-logo.png" alt="Cheffo Doggo mascot" className="mx-auto h-56 w-56 object-contain" />
         </div>
       </section>
 

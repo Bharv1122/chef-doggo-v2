@@ -77,7 +77,7 @@ export function AppShell({ active, children, rightRail }: AppShellProps) {
               <Bell size={18} />
             </button>
             <div className="flex items-center gap-2 rounded-full border border-[#eadfce] bg-white px-2 py-1.5">
-              <img src="/chef-doggo-logo.webp" alt="User" className="h-9 w-9 rounded-full object-cover" />
+              <img src="/cheffo-doggo-logo.png" alt="User" className="h-9 w-9 rounded-full object-cover" />
               <div className="hidden pr-1 sm:block">
                 <p className="text-sm font-semibold leading-tight text-[#2b2118]">{displayName}</p>
                 <p className="text-xs leading-tight text-[#8b8378]">Dog Parent</p>

@@ -102,7 +102,7 @@ export default function HomePage() {
           </div>
           <div className="relative">
             <div className="absolute -inset-5 rounded-full bg-[#ffe6cf] blur-2xl" />
-            <img src="/chef-doggo-logo.webp" alt="Cheffo Doggo mascot" className="relative mx-auto h-64 w-64 object-contain" />
+            <img src="/cheffo-doggo-logo.png" alt="Cheffo Doggo mascot" className="relative mx-auto h-64 w-64 object-contain" />
           </div>
         </div>
       </section>
@@ -198,7 +198,7 @@ export default function HomePage() {
             <div className="mt-4 space-y-3">
               {profiles.map(dog => (
                 <div key={dog.id} className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-white p-3">
-                  <img src="/chef-doggo-logo.webp" alt={dog.name} className="h-14 w-14 rounded-full border border-[#eadfce] object-cover" />
+                  <img src="/cheffo-doggo-logo.png" alt={dog.name} className="h-14 w-14 rounded-full border border-[#eadfce] object-cover" />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{dog.name}</p>
                     <p className="text-sm text-[#8b8378]">{dog.breed} · {dog.ageYears > 0 ? `${dog.ageYears} yrs` : `${dog.ageMonths} mo`}</p>

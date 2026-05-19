@@ -146,7 +146,7 @@ export function FloatingChatHead() {
         aria-label="Open Cheffo Doggo chat"
       >
         <img
-          src="/chef-doggo-logo.webp"
+          src="/cheffo-doggo-logo.png"
           alt=""
           className="h-14 w-14 rounded-full object-contain"
         />
@@ -166,7 +166,7 @@ export function FloatingChatHead() {
     >
       {/* Header */}
       <div className="flex items-center gap-3 border-b border-[#eadfce] bg-white px-4 py-3">
-        <img src="/chef-doggo-logo.webp" alt="" className="h-10 w-10 rounded-full border border-[#eadfce] object-contain" />
+        <img src="/cheffo-doggo-logo.png" alt="" className="h-10 w-10 rounded-full border border-[#eadfce] object-contain" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-[#2b2118]">Cheffo Doggo</p>
           <p className="flex items-center gap-1.5 text-xs text-[#4f8f64]">

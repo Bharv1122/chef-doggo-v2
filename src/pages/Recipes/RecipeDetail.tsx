@@ -343,7 +343,7 @@ export default function RecipeDetailPage() {
         <>
           <section className="doggo-card p-5">
             <div className="flex items-center gap-3">
-              <img src="/chef-doggo-logo.webp" alt="Cheffo Doggo mascot" className="h-16 w-16 rounded-2xl border border-[#eadfce] bg-[#fff4ea] object-contain p-1" />
+              <img src="/cheffo-doggo-logo.png" alt="Cheffo Doggo mascot" className="h-16 w-16 rounded-2xl border border-[#eadfce] bg-[#fff4ea] object-contain p-1" />
               <div>
                 <h3 className="text-[1.4rem] font-semibold">Cheffo Doggo's Tip 🐾</h3>
                 <p className="mt-1 text-sm text-[#7e7369]">

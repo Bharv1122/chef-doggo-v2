@@ -21,7 +21,7 @@ export function Logo({ size = 'md', showText = true, className = '' }: LogoProps
     <div className={['flex items-center gap-2', className].join(' ')}>
       {!imgError ? (
         <img
-          src="/chef-doggo-logo.webp"
+          src="/cheffo-doggo-logo.png"
           alt="Cheffo Doggo"
           className={[s.img, 'object-contain shrink-0'].join(' ')}
           onError={() => setImgError(true)}
