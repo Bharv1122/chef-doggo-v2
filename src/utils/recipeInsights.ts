@@ -1,4 +1,5 @@
 import { getIngredientById } from '../data/ingredients';
+import { getIngredientMacroSplit } from '../data/ingredientMacros';
 import type { Recipe } from '../types/recipe';
 
 export type RecipePhotoKind = 'chicken' | 'beef' | 'fish' | 'veggie' | 'treats';
@@ -126,26 +127,13 @@ export function getNutritionMacroBreakdown(recipe: Recipe): Array<{ key: 'protei
     if (caloriesPerGram <= 0 || !Number.isFinite(caloriesPerGram)) continue;
 
     const calories = ingredient.amountGrams * caloriesPerGram;
-    const sourceName = source?.name?.toLowerCase() ?? '';
-    const ingredientName = ingredient.name.toLowerCase();
-    const isFishOilSupplement =
-      ingredient.ingredientId === 'fish_oil'
-      || /fish[_\s-]?oil/.test(sourceName)
-      || /fish[_\s-]?oil/.test(ingredientName);
-
-    if (ingredient.category === 'protein') {
-      caloriesByMacro.protein += calories;
-      continue;
-    }
-
-    if (ingredient.category === 'fat' || isFishOilSupplement) {
-      caloriesByMacro.fat += calories;
-      continue;
-    }
-
-    if (ingredient.category === 'carb' || ingredient.category === 'vegetable' || ingredient.category === 'treat') {
-      caloriesByMacro.carb += calories;
-    }
+    // Split each ingredient's calories across macros by its composition, so a
+    // fatty protein (salmon, lamb) contributes to both protein AND fat rather
+    // than dumping 100% of its calories into a single bucket.
+    const split = getIngredientMacroSplit(ingredient.ingredientId, ingredient.category);
+    caloriesByMacro.protein += calories * split.protein;
+    caloriesByMacro.fat += calories * split.fat;
+    caloriesByMacro.carb += calories * split.carb;
   }
 
   const totalCalories = caloriesByMacro.protein + caloriesByMacro.fat + caloriesByMacro.carb;
