@@ -206,13 +206,11 @@ export default function RecipeDetailPage() {
 
   const recipe = id ? getRecipe(id) : undefined;
   const dogProfile = recipe ? getProfile(recipe.dogProfileId) : undefined;
-  const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [isBatchOpen, setIsBatchOpen] = useState(false);
   const [batchDuration, setBatchDuration] = useState<BatchDuration>('1day');
-  const [draftIngredients, setDraftIngredients] = useState<RecipeIngredient[]>([]);
-  const [customizeError, setCustomizeError] = useState<string | null>(null);
-  const [customizeSuccess, setCustomizeSuccess] = useState<string | null>(null);
-  const [isSavingCustomization, setIsSavingCustomization] = useState(false);
+  const [swapError, setSwapError] = useState<string | null>(null);
+  const [swapSuccess, setSwapSuccess] = useState<string | null>(null);
+  const [isSwapping, setIsSwapping] = useState(false);
 
   // useMemo dropped intentionally — React Compiler auto-memoizes, and the manual
   // useMemo here triggered its preserve-manual-memoization warning on `recipe`.
@@ -237,62 +235,39 @@ export default function RecipeDetailPage() {
 
   const currentRecipe = recipe;
 
-  function openCustomizeIngredients() {
-    setDraftIngredients(currentRecipe.ingredients.map(ingredient => ({ ...ingredient })));
-    setCustomizeError(null);
-    setCustomizeSuccess(null);
-    setIsCustomizeOpen(true);
-  }
+  // Swap a single ingredient in place and save immediately — no modal, no
+  // draft. Portions are kept; the new ingredient is safety-checked against the
+  // dog, and the shopping list is rebuilt. Nutrition recomputes on re-render.
+  async function handleInlineSwap(index: number, swapIngredientId: string) {
+    if (isSwapping) return;
 
-  function handleSwapIngredient(index: number, swapIngredientId: string) {
-    const swapIngredient = getIngredientById(swapIngredientId);
-    if (!swapIngredient) {
-      setCustomizeError('Could not find that swap ingredient. Please try a different option.');
+    const swap = getIngredientById(swapIngredientId);
+    if (!swap) {
+      setSwapError('Could not find that swap ingredient. Please try a different option.');
+      setSwapSuccess(null);
       return;
     }
 
-    const safetyResult = checkSingleIngredient(swapIngredient.name, dogProfile);
+    const safetyResult = checkSingleIngredient(swap.name, dogProfile);
     if (!safetyResult.safe) {
-      setCustomizeError(safetyResult.errors.join(' '));
+      setSwapError(safetyResult.errors.join(' '));
+      setSwapSuccess(null);
       return;
     }
 
-    setDraftIngredients(prev => prev.map((ingredient, ingredientIndex) => {
+    const nextIngredients = currentRecipe.ingredients.map((ingredient, ingredientIndex) => {
       if (ingredientIndex !== index) return ingredient;
-
-      const nextIngredient = rebuildIngredientDisplay({
+      return rebuildIngredientDisplay({
         ...ingredient,
-        ingredientId: swapIngredient.id,
-        name: swapIngredient.name,
-        category: swapIngredient.category,
-        prepNote: swapIngredient.prepNotes,
+        ingredientId: swap.id,
+        name: swap.name,
+        category: swap.category,
+        prepNote: swap.prepNotes,
       });
+    });
 
-      return nextIngredient;
-    }));
-
-    setCustomizeError(null);
-  }
-
-  async function handleSaveCustomIngredients() {
-    if (!draftIngredients.length) {
-      setCustomizeError('Please keep at least one ingredient in the recipe.');
-      return;
-    }
-
-    const firstUnsafeIngredient = draftIngredients
-      .map(ingredient => ({ ingredient, result: checkSingleIngredient(ingredient.name, dogProfile) }))
-      .find(entry => !entry.result.safe);
-
-    if (firstUnsafeIngredient) {
-      setCustomizeError(firstUnsafeIngredient.result.errors.join(' '));
-      return;
-    }
-
-    const normalizedIngredients = draftIngredients.map(rebuildIngredientDisplay);
-    const ingredientNames = new Set(currentRecipe.ingredients.map(ingredient => ingredient.name.toLowerCase()));
-
-    const updatedShoppingIngredients: ShoppingListItem[] = normalizedIngredients.map(ingredient => ({
+    const replacedNames = new Set(currentRecipe.ingredients.map(ingredient => ingredient.name.toLowerCase()));
+    const updatedShoppingIngredients: ShoppingListItem[] = nextIngredients.map(ingredient => ({
       name: ingredient.name,
       displayAmount: ingredient.displayVolume ?? ingredient.groceryFriendlyAmount,
       displayAmountMetric: ingredient.displayMetric,
@@ -300,23 +275,22 @@ export default function RecipeDetailPage() {
       category: ingredientCategoryToShoppingCategory(ingredient.category),
       note: ingredient.prepNote,
     }));
-
     const preservedShoppingItems = currentRecipe.shoppingList.filter(item =>
-      item.category === 'equipment' || !ingredientNames.has(item.name.toLowerCase())
+      item.category === 'equipment' || !replacedNames.has(item.name.toLowerCase())
     );
 
-    setIsSavingCustomization(true);
+    setIsSwapping(true);
+    setSwapError(null);
     try {
       await updateRecipe(currentRecipe.id, {
-        ingredients: normalizedIngredients,
+        ingredients: nextIngredients,
         shoppingList: [...updatedShoppingIngredients, ...preservedShoppingItems],
       });
-      setCustomizeSuccess('Ingredients updated successfully.');
-      setIsCustomizeOpen(false);
+      setSwapSuccess(`Swapped in ${swap.name} — portions and safety were re-checked.`);
     } catch (error) {
-      setCustomizeError(error instanceof Error ? error.message : 'Could not save ingredient changes. Please try again.');
+      setSwapError(error instanceof Error ? error.message : 'Could not save the swap. Please try again.');
     } finally {
-      setIsSavingCustomization(false);
+      setIsSwapping(false);
     }
   }
 
@@ -350,7 +324,6 @@ export default function RecipeDetailPage() {
       }))
     : recipe.ingredients;
 
-  const ingredients = scaledIngredients.map(ingredient => formatIngredientByPreference(ingredient, unitPreference));
   const instructions = recipe.instructions.map(step => step.instruction);
   const ingredientByName = new Map(scaledIngredients.map(item => [item.name, item]));
   const allergenSafety = recipe.allergenSafety;
@@ -458,9 +431,15 @@ export default function RecipeDetailPage() {
         </section>
       )}
 
-      {customizeSuccess && (
+      {swapSuccess && (
         <section className="mb-4 rounded-2xl border border-[#b6e5c3] bg-[#f0fbf3] px-4 py-3 text-sm font-medium text-[#2f7d4a]">
-          {customizeSuccess}
+          {swapSuccess}
+        </section>
+      )}
+
+      {swapError && (
+        <section className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          {swapError}
         </section>
       )}
 
@@ -629,18 +608,18 @@ export default function RecipeDetailPage() {
               </button>
             </div>
           </div>
-          <ul className="mt-3 space-y-2 text-sm text-[#6f6459]">
-            {ingredients.map(item => (
-              <li key={item} className="rounded-xl border border-[#eadfce] bg-white px-3 py-2">{item}</li>
+          <div className="mt-3 space-y-2">
+            {scaledIngredients.map((ingredient, index) => (
+              <IngredientCard
+                key={`${ingredient.ingredientId}-${index}`}
+                ingredient={ingredient}
+                onSwap={swapId => void handleInlineSwap(index, swapId)}
+              />
             ))}
-          </ul>
-          <button
-            type="button"
-            className="mt-3 rounded-xl border border-[#f2c8a0] px-4 py-2 text-sm font-semibold text-[#f97316] hover:bg-[#fff6ec]"
-            onClick={openCustomizeIngredients}
-          >
-            Customize Ingredients
-          </button>
+          </div>
+          <p className="mt-3 text-xs text-[#8b8378]">
+            Tap an ingredient for swap options — Chef Doggo keeps the portion the same and re-checks safety for this dog.
+          </p>
         </article>
 
         <article className="doggo-card p-5">
@@ -767,48 +746,6 @@ export default function RecipeDetailPage() {
           <p className="mt-2 text-xs leading-relaxed text-[#7f7469]">
             <strong>Thawing:</strong> {recipe.storage.thawInstructions}
           </p>
-        </div>
-      </Modal>
-
-      <Modal
-        open={isCustomizeOpen}
-        onClose={() => setIsCustomizeOpen(false)}
-        title="Customize Ingredients"
-        size="lg"
-        footer={(
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setDraftIngredients(currentRecipe.ingredients.map(ingredient => ({ ...ingredient })));
-                setCustomizeError(null);
-              }}
-            >
-              Reset
-            </Button>
-            <Button variant="secondary" onClick={() => setIsCustomizeOpen(false)}>Cancel</Button>
-            <Button onClick={() => void handleSaveCustomIngredients()} loading={isSavingCustomization}>Save Changes</Button>
-          </div>
-        )}
-      >
-        <p className="text-sm text-[#6f6459]">
-          Tap any ingredient to see substitution options. Chef Doggo will keep portions the same and re-check safety against this dog's profile.
-        </p>
-
-        {customizeError && (
-          <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {customizeError}
-          </div>
-        )}
-
-        <div className="mt-4 space-y-2">
-          {draftIngredients.map((ingredient, index) => (
-            <IngredientCard
-              key={`${ingredient.ingredientId}-${index}`}
-              ingredient={ingredient}
-              onSwap={swapId => handleSwapIngredient(index, swapId)}
-            />
-          ))}
         </div>
       </Modal>
     </AppShell>
